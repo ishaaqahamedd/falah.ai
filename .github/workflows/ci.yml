@@ -103,4 +103,5 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 256Mi
+            --memory 256Mi \
+            --set-env-vars "BACKEND_URL=${{ secrets.BACKEND_URL }}"
