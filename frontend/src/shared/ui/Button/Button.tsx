@@ -29,8 +29,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const intentClasses: Record<Intent, string> = {
       primary: 'bg-blue-600 text-white hover:bg-blue-700',
       danger: 'bg-red-600 text-white hover:bg-red-700',
-      ghost: 'bg-transparent text-slate-300 hover:bg-slate-700',
-      outline: 'border border-slate-600 text-slate-300 hover:bg-slate-700',
+      ghost: 'bg-transparent text-text-secondary hover:bg-surface-tertiary',
+      outline: 'border border-border-primary text-text-secondary hover:bg-surface-tertiary',
     };
 
     const sizeClasses: Record<Size, string> = {
@@ -44,7 +44,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const isDisabled = disabled || isLoading;
 
     const classes = [
-      'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900',
+      'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-surface',
       intentClasses[intent],
       sizeClasses[size],
       actorClass,

@@ -15,6 +15,16 @@ export const deletePersona = async (personaId: string) => {
   return response.data;
 };
 
+export const getPersona = async (personaId: string) => {
+  const response = await apiClient.get(`/personas/${personaId}`);
+  return response.data;
+};
+
+export const updatePersona = async (personaId: string, data: Record<string, unknown>) => {
+  const response = await apiClient.put(`/personas/${personaId}`, data);
+  return response.data;
+};
+
 export const getPersonaTemplates = async () => {
   const response = await apiClient.get('/personas/templates');
   return response.data;

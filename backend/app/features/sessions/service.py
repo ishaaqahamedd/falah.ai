@@ -89,7 +89,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-flash-lite-preview",
             contents=prompt,
         )
         text = response.text.strip()
@@ -132,7 +132,7 @@ Summary:"""
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-flash-lite-preview",
             contents=prompt,
         )
         return response.text.strip()

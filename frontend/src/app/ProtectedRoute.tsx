@@ -22,7 +22,7 @@ export const ProtectedRoute = () => {
   }, []);
 
   if (isVerifying) {
-    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-white">Verifying session...</div>;
+    return <div className="h-screen w-screen bg-surface flex items-center justify-center text-text-primary">Verifying session...</div>;
   }
 
   if (!isAuthenticated && !localStorage.getItem('access_token')) {
