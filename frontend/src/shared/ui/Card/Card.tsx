@@ -17,7 +17,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     };
 
     const classes = [
-      'bg-slate-800 border border-slate-700 rounded-xl',
+      'bg-surface-secondary border border-border-primary rounded-xl',
       paddingClasses[padding],
       interactive ? 'hover:border-blue-500 transition-colors cursor-pointer' : '',
       className,

@@ -134,14 +134,14 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
     });
   };
 
-  const inputClass = "w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-500";
+  const inputClass = "w-full bg-surface border border-border-primary rounded-lg p-3 text-text-primary focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-text-muted";
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 rounded-t-2xl">
-          <h2 className="text-2xl font-bold text-white">Create Persona</h2>
-          <button onClick={onCancel} className="text-slate-400 hover:text-white transition">
+      <div className="bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="p-6 border-b border-border-secondary flex justify-between items-center bg-surface-tertiary/50 rounded-t-2xl">
+          <h2 className="text-2xl font-bold text-text-primary">Create Persona</h2>
+          <button onClick={onCancel} className="text-text-muted hover:text-text-primary transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -152,7 +152,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
           {/* Template Picker */}
           {templates.length > 0 && (
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-300">Start from a template</label>
+              <label className="text-sm font-semibold text-text-secondary">Start from a template</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {templates.map((t: any) => (
                   <button
@@ -162,15 +162,15 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                     className={`text-left p-3 rounded-lg border transition-all text-sm ${
                       formData.type === t.type && formData.name === t.name
                         ? 'border-blue-500 bg-blue-600/20 ring-1 ring-blue-500/50'
-                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-500'
+                        : 'border-border-primary bg-surface/50 hover:border-border-primary/80'
                     }`}
                   >
-                    <div className="font-semibold text-white truncate">{t.name}</div>
-                    <div className="text-xs text-slate-400 truncate">{t.type}</div>
+                    <div className="font-semibold text-text-primary truncate">{t.name}</div>
+                    <div className="text-xs text-text-muted truncate">{t.type}</div>
                   </button>
                 ))}
               </div>
-              <div className="border-b border-slate-800 pt-2" />
+              <div className="border-b border-border-secondary pt-2" />
             </div>
           )}
 
@@ -178,7 +178,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
             {/* Type + Voice */}
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-300">Persona Type</label>
+                <label className="text-sm font-semibold text-text-secondary">Persona Type</label>
                 <input
                   required
                   placeholder="e.g. investor, onboarding, training, support..."
@@ -188,7 +188,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-300">AI Voice</label>
+                <label className="text-sm font-semibold text-text-secondary">AI Voice</label>
                 <select
                   value={formData.voice}
                   onChange={(e) => setFormData({...formData, voice: e.target.value})}
@@ -204,7 +204,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
             {/* Name + Role */}
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-300">Name</label>
+                <label className="text-sm font-semibold text-text-secondary">Name</label>
                 <input
                   required
                   placeholder="e.g. Sarah, Product Guide, KT Bot"
@@ -214,7 +214,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-300">Role / Title</label>
+                <label className="text-sm font-semibold text-text-secondary">Role / Title</label>
                 <input
                   required
                   placeholder="e.g. Managing Partner, Training Lead"
@@ -227,9 +227,9 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
 
             {/* Personality */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300 flex justify-between">
+              <label className="text-sm font-semibold text-text-secondary flex justify-between">
                 <span>Core Personality & Traits</span>
-                <span className="text-slate-500 font-normal">How should they act?</span>
+                <span className="text-text-muted font-normal">How should they act?</span>
               </label>
               <textarea
                 required
@@ -243,9 +243,9 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
 
             {/* Focus Areas */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300 flex justify-between">
+              <label className="text-sm font-semibold text-text-secondary flex justify-between">
                 <span>Key Focus Areas</span>
-                <span className="text-slate-500 font-normal">What do they care about?</span>
+                <span className="text-text-muted font-normal">What do they care about?</span>
               </label>
               <textarea
                 required
@@ -261,7 +261,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center space-x-2 text-slate-400 hover:text-blue-400 transition text-sm font-medium"
+              className="flex items-center space-x-2 text-text-muted hover:text-blue-400 transition text-sm font-medium"
             >
               <svg className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -270,16 +270,16 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
             </button>
 
             {showAdvanced && (
-              <div className="space-y-6 border-t border-slate-800 pt-6">
+              <div className="space-y-6 border-t border-border-secondary pt-6">
                 {/* Scoring Criteria */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm font-semibold text-slate-300">Scoring Criteria</label>
+                    <label className="text-sm font-semibold text-text-secondary">Scoring Criteria</label>
                     <button type="button" onClick={addCriterion} className="text-xs px-3 py-1 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition font-medium">
                       + Add Dimension
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500">Define how sessions with this persona will be scored (1-10 each).</p>
+                  <p className="text-xs text-text-muted">Define how sessions with this persona will be scored (1-10 each).</p>
                   {formData.scoring_criteria.map((c, idx) => (
                     <div key={idx} className="flex gap-3 items-start">
                       <div className="flex-1 space-y-1">
@@ -287,7 +287,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                           placeholder="Label (e.g. Clarity)"
                           value={c.label}
                           onChange={(e) => updateCriterion(idx, 'label', e.target.value)}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-500"
+                          className="w-full bg-surface border border-border-primary rounded-lg p-2 text-text-primary text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-text-muted"
                         />
                       </div>
                       <div className="flex-[2] space-y-1">
@@ -295,10 +295,10 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                           placeholder="Description (e.g. Clear and structured communication)"
                           value={c.desc}
                           onChange={(e) => updateCriterion(idx, 'desc', e.target.value)}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-500"
+                          className="w-full bg-surface border border-border-primary rounded-lg p-2 text-text-primary text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-text-muted"
                         />
                       </div>
-                      <button type="button" onClick={() => removeCriterion(idx)} className="text-slate-500 hover:text-red-400 transition mt-1.5">
+                      <button type="button" onClick={() => removeCriterion(idx)} className="text-text-muted hover:text-red-400 transition mt-1.5">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -306,29 +306,29 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                     </div>
                   ))}
                   {formData.scoring_criteria.length === 0 && (
-                    <p className="text-xs text-slate-600 italic">No custom criteria — will use default 5 pitch dimensions.</p>
+                    <p className="text-xs text-text-muted italic">No custom criteria — will use default 5 pitch dimensions.</p>
                   )}
                 </div>
 
                 {/* Behavior Rules */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm font-semibold text-slate-300">Behavior Rules</label>
+                    <label className="text-sm font-semibold text-text-secondary">Behavior Rules</label>
                     <button type="button" onClick={addRule} className="text-xs px-3 py-1 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/30 transition font-medium">
                       + Add Rule
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500">Custom instructions for how the AI should behave during sessions.</p>
+                  <p className="text-xs text-text-muted">Custom instructions for how the AI should behave during sessions.</p>
                   {formData.behavior_rules.map((rule, idx) => (
                     <div key={idx} className="flex gap-3 items-center">
-                      <span className="text-xs text-slate-500 w-6 text-right">{idx + 1}.</span>
+                      <span className="text-xs text-text-muted w-6 text-right">{idx + 1}.</span>
                       <input
                         placeholder="e.g. Always confirm user completed each step before moving on"
                         value={rule}
                         onChange={(e) => updateRule(idx, e.target.value)}
-                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg p-2 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-500"
+                        className="flex-1 bg-surface border border-border-primary rounded-lg p-2 text-text-primary text-sm focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-text-muted"
                       />
-                      <button type="button" onClick={() => removeRule(idx)} className="text-slate-500 hover:text-red-400 transition">
+                      <button type="button" onClick={() => removeRule(idx)} className="text-text-muted hover:text-red-400 transition">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -339,8 +339,8 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
 
                 {/* Opening Message */}
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-300">Opening Message</label>
-                  <p className="text-xs text-slate-500">How the AI should greet and start the session.</p>
+                  <label className="text-sm font-semibold text-text-secondary">Opening Message</label>
+                  <p className="text-xs text-text-muted">How the AI should greet and start the session.</p>
                   <textarea
                     rows={2}
                     placeholder="e.g. Welcome them warmly and ask what they'd like to set up today."
@@ -354,11 +354,11 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
           </form>
         </div>
 
-        <div className="p-6 border-t border-slate-800 flex justify-end space-x-4 bg-slate-800/30 rounded-b-2xl">
+        <div className="p-6 border-t border-border-secondary flex justify-end space-x-4 bg-surface-tertiary/30 rounded-b-2xl">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition font-medium"
+            className="px-6 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition font-medium"
           >
             Cancel
           </button>
