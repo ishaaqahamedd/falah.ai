@@ -1,0 +1,210 @@
+AI Sales & Investor Pitch Simulator - Master Build Specification
+
+Target: Gemini Live Agent Challenge
+Models: gemini-2.5-flash-native-audio-preview-12-2025 (Live API) & gemini-embedding-2-preview (CRM Context)
+
+🤖 INSTRUCTIONS FOR THE AI CODING ASSISTANT
+
+You are tasked with building a full-stack real-time Voice & Vision application.
+Read this entire document carefully before writing code. You must implement the exact file structure, use the specified libraries, and follow the critical Audio and WebSocket logic provided below.
+
+1. Tech Stack & Initialization
+
+Backend: Python 3.11+, FastAPI, Uvicorn, WebSockets, google-genai (The new SDK, NOT google-generativeai).
+
+Frontend: React (Vite), Tailwind CSS.
+
+Scaffolding Commands (Run these first):
+
+npx create-vite@latest frontend --template react
+
+cd frontend && npm install tailwindcss postcss autoprefixer && npx tailwindcss init -p
+
+mkdir backend && cd backend && python -m venv venv && source venv/bin/activate
+
+pip install fastapi uvicorn websockets google-genai pydantic
+
+2. File Structure Required
+
+/backend
+  ├── main.py              # FastAPI server & WebSocket Bidi-streaming loop
+  ├── requirements.txt
+/frontend
+  ├── public/
+  │   └── pcm-processor.js # CRITICAL: AudioWorklet for 16kHz downsampling
+  ├── src/
+  │   ├── App.jsx          # Main UI routing and state management
+  │   └── index.css        # Tailwind imports
+
+
+🧠 BACKEND SPECIFICATION (backend/main.py)
+
+Goal: Create a WebSocket endpoint that injects CRM context AND dynamic user-provided transcripts, connects to the Gemini Live API, and proxies the bidi-stream.
+
+Key Requirements:
+
+Initialize client = genai.Client().
+
+Define a mock CRM dictionary (e.g., {"investor_1": "Strict VC, hates buzzwords, cares about revenue.", "client_1": "Enterprise CTO, cares about SOC2 compliance."}).
+
+Optional: Use client.models.embed_content(model="gemini-embedding-2-preview", contents=...) to generate a vector for the context logs, but for the MVP, inject the text directly into the system prompt.
+
+The WebSocket Loop (/ws/pitch/{persona_id}):
+
+Accept the connection.
+
+CRITICAL - Dynamic Context Handshake: Wait for the first message from the client to be a JSON object containing the dynamic transcript: setup_data = await websocket.receive_json(). Extract transcript = setup_data.get("transcript", "").
+
+Establish async with client.aio.live.connect(model="gemini-2.5-flash-native-audio-preview-12-2025", config=config) as session:
+
+The config must contain response_modalities=["AUDIO"]. The system_instruction must combine the base CRM data AND the dynamically provided transcript so the AI has full context of previous SDR calls or emails.
+
+Use asyncio.gather to run two tasks concurrently:
+
+receive_from_client: Await websocket.receive_json(). If it has "audio", send as mime_type="audio/pcm;rate=16000". If it has "video", send as mime_type="image/jpeg".
+
+receive_from_gemini: Await session.receive(). If response.server_content.model_turn exists, extract part.inline_data.data (Base64) and send to the React websocket as {"audio": base64_string}. If response.server_content.interrupted is true, send {"interrupted": true}.
+
+🎙️ FRONTEND AUDIO SPECIFICATION (CRITICAL)
+
+The Gemini Live API requires strictly 16kHz 16-bit PCM audio input, and returns 24kHz 16-bit PCM output.
+
+File 1: public/pcm-processor.js (Write this exactly)
+
+You must create this Web Audio API Worklet to capture the microphone and downsample it safely.
+
+class PCMProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.buffer = new Int16Array(2048);
+    this.offset = 0;
+  }
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    if (input.length > 0) {
+      const channelData = input[0];
+      for (let i = 0; i < channelData.length; i++) {
+        // Convert Float32 [-1.0, 1.0] to Int16 [-32768, 32767]
+        let s = Math.max(-1, Math.min(1, channelData[i]));
+        this.buffer[this.offset++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        if (this.offset >= this.buffer.length) {
+          this.port.postMessage(this.buffer);
+          this.offset = 0;
+        }
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('pcm-processor', PCMProcessor);
+
+
+File 2: src/App.jsx Core Logic
+
+Implement the following core functions inside the React component:
+
+State: currentScreen ('dashboard', 'preflight', 'live', 'analytics'), persona (investor or client), isConnected, isScreenSharing, transcript (string for dynamic call notes).
+
+WebSocket Handshake:
+
+Once the WebSocket connects (onopen), immediately send the setup payload: socket.send(JSON.stringify({ transcript: transcript })).
+
+Audio Capture (Microphone):
+
+navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000 } })
+
+Initialize AudioContext({ sampleRate: 16000 }).
+
+Load the worklet: await audioCtx.audioWorklet.addModule('/pcm-processor.js').
+
+Listen to workletNode.port.onmessage. Convert the Int16Array to Base64 and send via socket.send(JSON.stringify({ audio: base64Data })).
+
+Video Capture (Screen Share / Pitch Deck):
+
+Button triggers navigator.mediaDevices.getDisplayMedia({ video: true }).
+
+Attach stream to a hidden <video> element.
+
+Create a setInterval that runs every 1000ms (1 FPS max for Live API).
+
+Draw the video frame to a hidden <canvas>, call canvas.toDataURL('image/jpeg', 0.5), strip the data prefix, and send socket.send(JSON.stringify({ video: base64String })).
+
+Audio Playback (AI Voice):
+
+When socket receives {"audio": "base64..."}, decode it to an ArrayBuffer.
+
+Convert Int16 to Float32.
+
+Use audioCtx.createBuffer() (set to 24000 sample rate) and audioCtx.createBufferSource() to play the chunk.
+
+Interruption Handling (Barge-in):
+
+If socket receives {"interrupted": true}, immediately stop the current AudioBufferSourceNode to cut the AI off gracefully.
+
+📱 FRONTEND USER FLOW (Screen-by-Screen)
+
+The UI should be built with Tailwind CSS and transition cleanly between these four states.
+
+Screen 1: The CRM Dashboard (currentScreen === 'dashboard')
+
+Purpose: Select the target audience and view their background data.
+
+Layout:
+
+Header: "Pitch Simulator Dashboard".
+
+Main Grid: Display 2-3 Persona Cards (e.g., "Sarah - Tier 1 VC", "David - Enterprise CTO").
+
+Persona Card Content: Name, Role, and a mocked "CRM History" snippet (e.g., Past emails: Expressed concerns about our ARR growth.).
+
+Action: Clicking a persona sets the persona state and transitions to the Pre-flight screen.
+
+Screen 2: The Pre-Flight Room (currentScreen === 'preflight')
+
+Purpose: Hardware setup, screen share initiation, and context injection.
+
+Layout:
+
+Left Column: Selected Persona details.
+
+Middle Column (NEW): A large <textarea> labeled "Paste Previous Call Transcript / Email Threads". This maps to the transcript state and allows users to dynamically feed prior SDR notes into the AI's system prompt.
+
+Right Column: Hardware checks.
+
+A "Test Microphone" visualizer.
+
+A large "Share Screen (Pitch Deck)" button. When clicked, it triggers getDisplayMedia and shows a small preview thumbnail of the shared window.
+
+Action: A massive, pulsing "Start Live Pitch" button. Clicking this opens the WebSocket to the FastAPI backend, sends the transcript JSON as the initial handshake message, and transitions to the Live screen.
+
+Screen 3: The Live Pitch (currentScreen === 'live')
+
+Purpose: The immersive multimodal bidi-streaming experience.
+
+Layout:
+
+Split Screen UI.
+
+Top/Left Pane (Vision Context): A live preview of the screen being shared (the user's pitch deck). This reassures the user that the AI can "see" the slides.
+
+Bottom/Right Pane (AI Avatar & Status):
+
+A dynamic avatar or waveform that animates when the AI is speaking, and returns to a "Listening..." state when the user is speaking or when {"interrupted": true} is received.
+
+A scrolling transcript or connection status log (Connected to Gemini Live..., Sending audio chunks...).
+
+Action: A "End Pitch" button in red. Clicking this closes the WebSocket connection, stops media tracks, and transitions to the Analytics screen.
+
+Screen 4: Post-Pitch Analytics (currentScreen === 'analytics')
+
+Purpose: Debrief and provide value.
+
+Layout:
+
+Simple summary dashboard showing the duration of the pitch.
+
+(Optional for MVP) A text block displaying a mock AI scorecard: "Empathy: 8/10, Objection Handling: 5/10 - You missed the question about SOC2 compliance on slide 4."
+
+Action: "Return to Dashboard" button.
+
+NOW, BEGIN WRITING THE CODE FOR THE FRONTEND AND BACKEND.

@@ -1,0 +1,8 @@
+venv/
+.git/
+.agents/
+**/__pycache__/
+**/node_modules/
+**/.env
+*.log
+frontend/dist/

@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api/v1
+        VITE_LIVEKIT_URL: ${LIVEKIT_URL:-wss://your-app.livekit.cloud}
+    ports:
+      - "80:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped

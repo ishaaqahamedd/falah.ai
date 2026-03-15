@@ -1,0 +1,8 @@
+## Native audio capabilities
+
+Our latest models feature [native audio output](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-native-audio-preview-12-2025),
+which provides natural, realistic-sounding speech and improved multilingual
+performance. Native audio also enables advanced features like [affective
+(emotion-aware) dialogue](https://ai.google.dev/gemini-api/docs/live-guide#affective-dialog), [proactive audio](https://ai.google.dev/gemini-api/docs/live-guide#proactive-audio)
+(where the model intelligently decides when to respond to input),
+and ["thinking"](https://ai.google.dev/gemini-api/docs/live-guide#native-audio-output-thinking).
