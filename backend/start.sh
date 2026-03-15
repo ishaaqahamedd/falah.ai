@@ -20,5 +20,5 @@ python -m app.features.livekit.agent &
 AGENT_PID=$!
 
 # Start FastAPI server in foreground
-echo "Starting FastAPI server on port ${PORT:-8000}..."
-uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+echo "Starting FastAPI server on port ${PORT:-8080}..."
+uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1
