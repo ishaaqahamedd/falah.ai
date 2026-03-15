@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 # --- MODIFICATION STARTS HERE ---
 # The error suggests explicitly removing node_modules and package-lock.json
 # before a clean install to avoid an npm bug with optional dependencies.
-RUN rm -rf node_modules package-lock.json && npm ci
+RUN rm -rf node_modules package-lock.json && npm install
 # --- MODIFICATION ENDS HERE ---
 
 RUN npm rebuild
