@@ -9,7 +9,7 @@ import {
 import { Track } from 'livekit-client';
 import { getLiveKitToken } from '../../features/livekit/api';
 
-const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL;
+const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL;
 
 interface LivePitchPageProps {
   persona: any;

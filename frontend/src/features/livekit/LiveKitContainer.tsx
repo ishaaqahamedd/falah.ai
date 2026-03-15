@@ -2,7 +2,7 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
 import { getLiveKitToken } from './api';
 
-const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL as string;
+const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL as string;
 
 interface LiveKitContainerProps {
   persona: { id: string; [key: string]: any };
