@@ -2,7 +2,13 @@
 FROM node:22-slim AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+
+# --- MODIFICATION STARTS HERE ---
+# The error suggests explicitly removing node_modules and package-lock.json
+# before a clean install to avoid an npm bug with optional dependencies.
+RUN rm -rf node_modules package-lock.json && npm ci
+# --- MODIFICATION ENDS HERE ---
+
 RUN npm rebuild
 COPY . .
 
