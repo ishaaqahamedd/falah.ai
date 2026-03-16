@@ -319,6 +319,7 @@ async def entrypoint(ctx: JobContext):
     session_history = meta.get("session_history", None)
     user_id = meta.get("user_id", "")
     session_id = meta.get("session_id", "")
+    is_onboarding = meta.get("mode") == "onboarding"
 
     logger.info(f"[Agent] persona_id={persona_id}, has_config={persona_config is not None}, "
                 f"briefing_len={len(briefing_context)}, history_count={len(session_history) if session_history else 0}, "
@@ -365,6 +366,9 @@ async def entrypoint(ctx: JobContext):
         duration = int(time.time() - start_time)
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving...")
 
+        if is_onboarding:
+            logger.info("[Agent] Onboarding session ended — skipping DB save/scoring")
+            return
         if len(transcript) < 1:
             logger.warning(f"[Agent] Skipping save: no transcript turns captured")
         elif session_id:

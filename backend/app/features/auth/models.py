@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -18,3 +18,8 @@ class User(Base, TimestampMixin):
     is_active = Column(Boolean, default=True)
     auth_provider = Column(String(20), nullable=False, server_default="local")
     google_id = Column(String(255), nullable=True, unique=True, index=True)
+
+    # Onboarding
+    onboarding_status = Column(String(20), nullable=False, server_default="pending")
+    onboarding_step = Column(String(50), nullable=True)
+    onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)

@@ -17,6 +17,7 @@ from app.features.livekit.router import router as livekit_router
 from app.features.personas.router import router as personas_router
 from app.features.context.router import router as context_router
 from app.features.sessions.router import router as sessions_router
+from app.features.onboarding.router import router as onboarding_router
 
 # Configure logging
 logging.basicConfig(
@@ -42,6 +43,7 @@ app.include_router(livekit_router)
 app.include_router(personas_router)
 app.include_router(context_router)
 app.include_router(sessions_router)
+app.include_router(onboarding_router)
 
 api_key = os.environ.get("GOOGLE_API_KEY")
 if not api_key or api_key == "PASTE_YOUR_GEMINI_API_KEY_HERE":
