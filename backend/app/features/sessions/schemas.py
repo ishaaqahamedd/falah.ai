@@ -27,7 +27,7 @@ class ScorecardSchema(BaseModel):
 
 
 class SessionCreate(BaseModel):
-    persona_id: Optional[UUID] = None
+    persona_id: Optional[str] = None
     persona_snapshot: Optional[dict] = None
 
 

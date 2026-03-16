@@ -157,9 +157,16 @@ class SessionService:
         self.repository = repository
 
     async def create_session(self, user_id: UUID, data: SessionCreate) -> PitchSession:
+        persona_uuid = None
+        if data.persona_id:
+            try:
+                persona_uuid = uuid.UUID(data.persona_id)
+            except ValueError:
+                pass  # Preset agents use string IDs like "investor_1"
+
         session_record = PitchSession(
             user_id=user_id,
-            persona_id=data.persona_id,
+            persona_id=persona_uuid,
             persona_snapshot=data.persona_snapshot,
             status=SessionStatus.ACTIVE,
         )
