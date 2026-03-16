@@ -55,7 +55,7 @@ export const LoginPage = () => {
       <div className={`relative z-10 max-w-md w-full bg-white/90 dark:bg-surface-secondary/70 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/20 transition-all duration-1500 ease-out ${showForm ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
         <div className="p-8">
           <h2 className="text-3xl font-bold text-text-primary text-center mb-2">Falah.ai</h2>
-          <p className="text-center text-sm mb-8">AI Pitch Simulator</p>
+          <p className="text-center text-sm mb-8">Build AI Agents. Master Any Conversation.</p>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded-lg mb-6 text-sm">

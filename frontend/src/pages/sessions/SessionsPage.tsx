@@ -98,7 +98,7 @@ export function SessionsPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">Sessions</h1>
-        <p className="text-text-secondary mt-1">Review and analyze your past practice sessions</p>
+        <p className="text-text-secondary mt-1">Every session recorded, scored, and ready to review</p>
       </div>
 
       {/* Filters */}

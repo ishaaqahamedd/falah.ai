@@ -6,7 +6,7 @@ export function ConnectorsPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">Connectors</h1>
-        <p className="text-text-secondary mt-1">Connect external apps to enrich your agent sessions with real context</p>
+        <p className="text-text-secondary mt-1">Feed real-world data into your agents — emails, docs, CRM, and more</p>
       </div>
 
       {/* Grid */}

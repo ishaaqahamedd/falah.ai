@@ -4,6 +4,7 @@ import json
 import logging
 import time
 
+from livekit import rtc
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
 from livekit.agents.voice import Agent, AgentSession, VoiceActivityVideoSampler, room_io
 from livekit.plugins import google
@@ -190,6 +191,35 @@ async def _update_session_in_db(
         await agent_engine.dispose()
 
 
+async def _save_onboarding_summary(user_id: str, summary: str):
+    """Save onboarding AI summary to the User record.
+
+    Uses a fresh engine scoped to the agent worker's own event loop.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
+    from app.features.auth.models import User
+
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            user = await db.get(User, user_id)
+            if user:
+                user.onboarding_summary = summary
+                await db.commit()
+                logger.info(f"[Agent] Onboarding summary persisted for user {user_id}")
+            else:
+                logger.warning(f"[Agent] User {user_id} not found — skipping onboarding summary")
+    finally:
+        await agent_engine.dispose()
+
+
 # ---------------------------------------------------------------------------
 # Dynamic Prompt Builder — works for ANY persona type
 # ---------------------------------------------------------------------------
@@ -367,7 +397,15 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving...")
 
         if is_onboarding:
-            logger.info("[Agent] Onboarding session ended — skipping DB save/scoring")
+            logger.info("[Agent] Onboarding session ended — generating summary")
+            if len(transcript) > 0 and user_id:
+                try:
+                    from app.features.sessions.service import generate_session_summary
+                    summary = await generate_session_summary(transcript, persona_config)
+                    await _save_onboarding_summary(user_id, summary)
+                    logger.info(f"[Agent] Onboarding summary saved: {summary[:100]}...")
+                except Exception as e:
+                    logger.error(f"[Agent] Failed to save onboarding summary: {e}", exc_info=True)
             return
         if len(transcript) < 1:
             logger.warning(f"[Agent] Skipping save: no transcript turns captured")
@@ -416,20 +454,71 @@ async def entrypoint(ctx: JobContext):
         )
     )
 
-    # 7. Auto-end onboarding sessions after 5 minutes
+    # 7. Onboarding-specific: screen share detection, silence nudge, auto-end
     if is_onboarding:
+        # --- Screen share start detection ---
+        @ctx.room.on("track_subscribed")
+        def _on_track_subscribed(
+            track: rtc.Track,
+            publication: rtc.RemoteTrackPublication,
+            participant: rtc.RemoteParticipant,
+        ):
+            if publication.source == rtc.TrackSource.SOURCE_SCREENSHARE:
+                logger.info("[Agent] Onboarding — screen share detected, triggering acknowledgment")
+                session.generate_reply(
+                    user_input="The user just started sharing their screen. Acknowledge it with energy and enthusiasm, thank them, and continue guiding them."
+                )
+
+        # --- Screen share stop detection ---
+        @ctx.room.on("track_unsubscribed")
+        def _on_track_unsubscribed(
+            track: rtc.Track,
+            publication: rtc.RemoteTrackPublication,
+            participant: rtc.RemoteParticipant,
+        ):
+            if publication.source == rtc.TrackSource.SOURCE_SCREENSHARE:
+                logger.info("[Agent] Onboarding — screen share stopped")
+                session.generate_reply(
+                    user_input="The user just stopped sharing their screen. In a friendly, encouraging tone, ask them to share their screen again so you can guide them better. Keep it to 1-2 sentences."
+                )
+
+        # --- Silence nudge: proactively follow up if user is quiet ---
+        last_user_activity = time.time()
+
+        @session.on("user_speech_committed")
+        def _on_user_speech(ev):
+            nonlocal last_user_activity
+            last_user_activity = time.time()
+
+        async def _silence_nudge():
+            """Nudge user every 15s of silence."""
+            nonlocal last_user_activity
+            while True:
+                await asyncio.sleep(15)
+                if time.time() - last_user_activity > 15:
+                    logger.info("[Agent] Onboarding — user silent for 15s, nudging")
+                    session.generate_reply(
+                        user_input="The user has been quiet for a while. Give them a friendly, short nudge. Ask if they need help or want you to explain something. Keep it to 1 sentence."
+                    )
+                    last_user_activity = time.time()
+
+        asyncio.create_task(_silence_nudge())
+
+        # --- Auto-end: caution at 3:45, goodbye at 4:00, shutdown at 4:15 ---
         async def _onboarding_auto_end():
-            await asyncio.sleep(240)  # 4m — trigger farewell
-            logger.info("[Agent] Onboarding 4m mark — triggering farewell")
-            farewell = (
-                "Say a warm farewell to the user. Tell them it was great connecting, "
-                "you'll be around whenever they need you, and encourage them to explore "
-                "the platform at their own pace. Keep it to 2-3 sentences max."
+            await asyncio.sleep(225)  # 3m45s — caution
+            logger.info("[Agent] Onboarding 3:45 mark — time running out caution")
+            session.generate_reply(
+                user_input="Gently let the user know that you've been having a great time but the setup session will wrap up soon. Be friendly and encouraging — don't make it feel abrupt. Keep it to 1-2 sentences."
             )
-            session.generate_reply(user_input=farewell)
-            await asyncio.sleep(60)  # 1m buffer — let farewell finish naturally
-            logger.info("[Agent] Onboarding 5m mark — shutting down")
-            await ctx.shutdown()
+            await asyncio.sleep(15)  # 4m00s — goodbye
+            logger.info("[Agent] Onboarding 4:00 mark — saying goodbye")
+            session.generate_reply(
+                user_input="Say a warm goodbye to the user. Tell them it was awesome setting up together, they can always come back, and encourage them to keep exploring. Keep it to 2-3 sentences max."
+            )
+            await asyncio.sleep(15)  # 4m15s — shutdown
+            logger.info("[Agent] Onboarding 4:15 mark — shutting down")
+            ctx.shutdown()
 
         asyncio.create_task(_onboarding_auto_end())
 

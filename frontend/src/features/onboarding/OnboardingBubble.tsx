@@ -22,12 +22,6 @@ const ONBOARDING_STEPS = [
   { key: 'first_session', label: 'Start your first session' },
 ];
 
-const SETUP_STEPS = [
-  { label: 'Connecting to your guide...', delay: 0 },
-  { label: 'Setting up audio...', delay: 1500 },
-  { label: 'Almost ready...', delay: 3000 },
-];
-
 export function OnboardingBubble() {
   const { token, roomName, expanded, setExpanded, endOnboarding, currentStep } = useOnboardingStore();
   const location = useLocation();
@@ -62,67 +56,66 @@ export function OnboardingBubble() {
 // ---------------------------------------------------------------------------
 
 function SetupLoader({ visible }: { visible: boolean }) {
-  const [currentStep, setCurrentStep] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    const timers = SETUP_STEPS.map((step, i) =>
-      setTimeout(() => setCurrentStep(i), step.delay)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  useEffect(() => {
-    if (!visible) {
-      setFadeOut(true);
-    }
+    if (!visible) setFadeOut(true);
   }, [visible]);
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-surface flex flex-col items-center justify-center transition-opacity duration-500 ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        }`}
+      className={`fixed inset-0 z-50 bg-surface flex flex-col items-center justify-center transition-opacity duration-500 ${
+        fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
     >
-      {/* Pulsing orb with BotIcon */}
-      <div className="relative mb-10">
-        <div className="w-24 h-24 rounded-full bg-blue-600/20 flex items-center justify-center">
-          <div className="w-14 h-14 rounded-full bg-blue-500 animate-pulse shadow-[0_0_40px_rgba(59,130,246,0.6)] flex items-center justify-center">
-            <BotIcon className="w-7 h-7 text-white" />
-          </div>
+      <div className="relative w-16 h-16 mb-6">
+        <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+        <div className="relative w-full h-full rounded-full bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
+          <BotIcon className="w-7 h-7 text-white" />
         </div>
-        <div className="absolute inset-0 w-24 h-24 rounded-full border-2 border-blue-500/30 animate-ping" />
       </div>
+      <p className="text-text-primary text-sm font-medium">Connecting to your guide...</p>
+      <p className="text-text-muted text-xs mt-1">This will just take a moment</p>
+    </div>
+  );
+}
 
-      {/* Steps */}
-      <div className="space-y-3 w-72">
-        {SETUP_STEPS.map((step, i) => (
-          <div
-            key={step.label}
-            className={`flex items-center gap-3 transition-all duration-500 ${i <= currentStep ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
-              }`}
-          >
-            {i < currentStep ? (
-              <svg className="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            ) : i === currentStep ? (
-              <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-              </div>
-            ) : (
-              <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-surface-tertiary" />
-              </div>
-            )}
-            <span className={`text-sm font-medium ${i < currentStep ? 'text-emerald-400' : i === currentStep ? 'text-text-primary' : 'text-text-muted'
-              }`}>
-              {step.label}
-            </span>
+// ---------------------------------------------------------------------------
+// Screen Share Permission Modal
+// ---------------------------------------------------------------------------
+
+function ScreenShareModal({ onAllow, onDeny }: { onAllow: () => void; onDeny: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-surface-secondary border border-border-primary rounded-2xl shadow-2xl w-80 overflow-hidden">
+        <div className="px-5 py-4 border-b border-border-primary">
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+            <span className="text-sm font-semibold text-text-primary">Share your screen</span>
           </div>
-        ))}
+          <p className="text-xs text-text-secondary mt-2">
+            Your setup guide can see this page to help you navigate the platform in real time.
+          </p>
+        </div>
+        <div className="px-5 py-3 flex items-center justify-end gap-2">
+          <button
+            onClick={onDeny}
+            className="px-4 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary rounded-lg transition-colors cursor-pointer"
+          >
+            Not now
+          </button>
+          <button
+            onClick={onAllow}
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+          >
+            Allow
+          </button>
+        </div>
       </div>
-
-      <p className="text-text-muted text-xs mt-8 animate-pulse">Setting up your onboarding guide...</p>
     </div>
   );
 }
@@ -148,6 +141,7 @@ function BubbleUI({
   const [muted, setMuted] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [showScreenShareModal, setShowScreenShareModal] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
   const [loaderDismissed, setLoaderDismissed] = useState(false);
@@ -190,7 +184,7 @@ function BubbleUI({
     if (!setupComplete) return;
     const timer = setTimeout(() => {
       handleEnd();
-    }, 330_000); // 5m30s
+    }, 285_000); // 4m45s safety fallback
     return () => clearTimeout(timer);
   }, [setupComplete]);
 
@@ -198,32 +192,38 @@ function BubbleUI({
   useEffect(() => {
     if (showLoader || screenShareTriggered.current || screenSharing) return;
 
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       if (!screenShareTriggered.current) {
         screenShareTriggered.current = true;
-        try {
-          await localParticipant.setScreenShareEnabled(true);
-        } catch (e) {
-          // User denied — agent works audio-only
-          console.log('Screen share denied or failed:', e);
-        }
+        setShowScreenShareModal(true);
       }
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [showLoader, localParticipant, screenSharing]);
+  }, [showLoader, screenSharing]);
 
   const toggleMute = () => {
     localParticipant.setMicrophoneEnabled(muted);
     setMuted(!muted);
   };
 
-  const toggleScreenShare = async () => {
-    screenShareTriggered.current = true; // Prevent auto-trigger after manual action
+  const startScreenShare = async () => {
+    setShowScreenShareModal(false);
+    screenShareTriggered.current = true;
     try {
-      await localParticipant.setScreenShareEnabled(!screenSharing);
+      await localParticipant.setScreenShareEnabled(true, {
+        preferCurrentTab: true,
+      } as any);
     } catch (e) {
-      console.error('Screen share failed:', e);
+      console.log('Screen share denied or failed:', e);
+    }
+  };
+
+  const stopScreenShare = async () => {
+    try {
+      await localParticipant.setScreenShareEnabled(false);
+    } catch (e) {
+      console.error('Screen share stop failed:', e);
     }
   };
 
@@ -242,7 +242,7 @@ function BubbleUI({
   if (showLoader) {
     return (
       <>
-        {setupComplete && <RoomAudioRenderer />}
+        <RoomAudioRenderer />
         <SetupLoader visible={!setupComplete} />
       </>
     );
@@ -320,13 +320,21 @@ function BubbleUI({
           </div>
         ) : (
           <button
-            onClick={toggleScreenShare}
+            onClick={() => { screenShareTriggered.current = true; setShowScreenShareModal(true); }}
             className="text-xs text-blue-500 hover:text-blue-400 cursor-pointer transition-colors"
           >
             Share your screen so I can guide you
           </button>
         )}
       </div>
+
+      {/* Screen share permission modal */}
+      {showScreenShareModal && (
+        <ScreenShareModal
+          onAllow={startScreenShare}
+          onDeny={() => setShowScreenShareModal(false)}
+        />
+      )}
 
       {/* Controls */}
       <div className="px-4 py-3 flex items-center justify-between">
@@ -341,7 +349,7 @@ function BubbleUI({
           </button>
           {screenSharing && (
             <button
-              onClick={toggleScreenShare}
+              onClick={stopScreenShare}
               className="p-2 rounded-lg bg-surface-tertiary text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
               title="Stop sharing"
             >
