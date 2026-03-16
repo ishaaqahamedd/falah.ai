@@ -16,6 +16,12 @@ class SessionRepository:
         await self.session.refresh(session_record)
         return session_record
 
+    async def get_by_id(self, session_id: UUID) -> Optional[PitchSession]:
+        result = await self.session.execute(
+            select(PitchSession).where(PitchSession.id == session_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_id_and_user(self, session_id: UUID, user_id: UUID) -> Optional[PitchSession]:
         result = await self.session.execute(
             select(PitchSession).where(

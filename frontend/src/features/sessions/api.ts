@@ -12,6 +12,14 @@ export const getSession = async (sessionId: string) => {
   return response.data;
 };
 
+export const createSession = async (personaId: string, personaSnapshot: any) => {
+  const response = await apiClient.post('/sessions/', {
+    persona_id: personaId,
+    persona_snapshot: personaSnapshot,
+  });
+  return response.data;
+};
+
 export const triggerScoring = async (sessionId: string) => {
   const response = await apiClient.post(`/sessions/${sessionId}/score`);
   return response.data;

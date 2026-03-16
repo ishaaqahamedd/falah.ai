@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   LiveKitRoom,
@@ -10,6 +10,7 @@ import {
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { getLiveKitToken } from '../../features/livekit/api';
+import { createSession } from '../../features/sessions/api';
 
 const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL;
 
@@ -24,17 +25,29 @@ export function LivePitchPage() {
   const selectedSpeakerId = location.state?.selectedSpeakerId || '';
 
   const [token, setToken] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const initRef = useRef(false);
 
   useEffect(() => {
+    // Guard against React strict mode double-firing
+    if (initRef.current) return;
+    initRef.current = true;
+
     const fetchToken = async () => {
       try {
         const personaId = persona?.id || 'unknown';
         const room = roomName || `session-${personaId}-${Date.now()}`;
-        const response = await getLiveKitToken(room, personaId, context);
+
+        // Create ACTIVE session in DB before entering the room
+        const sessionData = await createSession(personaId, persona);
+        setSessionId(sessionData.id);
+
+        // Pass session_id so agent knows which session to update on shutdown
+        const response = await getLiveKitToken(room, personaId, context, sessionData.id);
         setToken(response.token);
       } catch (e) {
-        setError('Failed to fetch LiveKit token. Are you authenticated?');
+        setError('Failed to connect. Are you authenticated?');
         console.error(e);
       }
     };
@@ -42,7 +55,7 @@ export function LivePitchPage() {
   }, [persona, context, roomName]);
 
   const handleEnd = () => {
-    navigate('/sessions');
+    navigate(sessionId ? `/sessions/${sessionId}` : '/sessions');
   };
 
   if (error) {

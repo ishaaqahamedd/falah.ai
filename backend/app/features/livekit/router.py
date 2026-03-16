@@ -29,9 +29,12 @@ async def get_livekit_token(
     room: str = Query(..., description="The ID of the room to join"),
     persona_id: str = Query("investor_1", description="Persona ID config"),
     context: str = Query("", description="Context/transcript from the prep room"),
+    session_id: str = Query("", description="Pre-created session ID for agent to update"),
 ):
     try:
         metadata = await service.build_room_metadata(current_user.id, persona_id, context)
+        if session_id:
+            metadata["session_id"] = session_id
         metadata_json = json.dumps(metadata)
         logger.info(f"Room metadata payload: {len(metadata_json)} bytes")
 

@@ -50,6 +50,23 @@ export function SessionDetailPage() {
     }
   };
 
+  const isActive = session?.status === 'active';
+  const isGenerating = session?.status === 'completed' && !session?.scorecard && !session?.ai_summary;
+
+  // Auto-poll while session is active or generating report
+  useEffect(() => {
+    if (!isActive && !isGenerating) return;
+    const interval = setInterval(async () => {
+      try {
+        if (id) {
+          const data = await getSession(id);
+          setSession(data);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [id, isActive, isGenerating]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -97,13 +114,38 @@ export function SessionDetailPage() {
         </div>
       </div>
 
+      {/* Session In Progress */}
+      {isActive && (
+        <div className="bg-surface-secondary border border-emerald-500/30 rounded-xl p-8 text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span className="text-emerald-400 font-bold text-lg">Session In Progress</span>
+          </div>
+          <p className="text-text-secondary text-sm">The report will be generated once the session ends.</p>
+        </div>
+      )}
+
       {/* AI Summary */}
-      {session.ai_summary && (
+      {session.ai_summary ? (
         <div className="bg-surface-secondary border border-border-primary rounded-xl p-6">
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">AI Session Summary</h3>
           <p className="text-text-secondary leading-relaxed">{session.ai_summary}</p>
         </div>
-      )}
+      ) : isGenerating ? (
+        <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 animate-pulse">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></span>
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Generating Summary...</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 bg-surface-tertiary rounded w-full"></div>
+            <div className="h-3 bg-surface-tertiary rounded w-4/5"></div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Scorecard */}
       {hasScorecard ? (
@@ -141,7 +183,20 @@ export function SessionDetailPage() {
             })}
           </div>
         </div>
-      ) : (
+      ) : isGenerating ? (
+        <div className="bg-surface-secondary border border-border-primary rounded-xl p-8 space-y-6">
+          <div className="flex items-center gap-3">
+            <span className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></span>
+            <span className="text-text-secondary font-medium">Analyzing your session performance...</span>
+          </div>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="space-y-2 animate-pulse">
+              <div className="h-3 bg-surface-tertiary rounded w-1/3"></div>
+              <div className="h-2.5 bg-surface-tertiary rounded-full w-full"></div>
+            </div>
+          ))}
+        </div>
+      ) : !isActive ? (
         <div className="bg-surface-secondary border border-border-primary rounded-xl p-8 text-center space-y-4">
           <p className="text-text-secondary">Scorecard not yet generated for this session.</p>
           {session.transcript && session.transcript.length >= 2 && (
@@ -154,7 +209,7 @@ export function SessionDetailPage() {
             </button>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Transcript */}
       {session.transcript && session.transcript.length > 0 && (

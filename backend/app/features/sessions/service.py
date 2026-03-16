@@ -238,6 +238,38 @@ class SessionService:
 
         return session_record
 
+    async def complete_existing_session(
+        self,
+        session_id: str,
+        transcript: list[dict],
+        duration_seconds: int,
+    ) -> PitchSession:
+        """Called by agent worker. Updates ACTIVE session to COMPLETED and auto-scores."""
+        session_uuid = uuid.UUID(session_id)
+        session_record = await self.repository.get_by_id(session_uuid)
+        if not session_record:
+            raise ValueError(f"Session {session_id} not found")
+
+        session_record.transcript = transcript
+        session_record.duration_seconds = duration_seconds
+        session_record.status = SessionStatus.COMPLETED
+        session_record.ended_at = datetime.now(timezone.utc)
+        session_record = await self.repository.update(session_record)
+        logger.info(f"Session {session_id} marked COMPLETED")
+
+        if len(transcript) >= 2:
+            try:
+                scorecard = await score_session(transcript, session_record.persona_snapshot)
+                summary = await generate_session_summary(transcript, session_record.persona_snapshot)
+                session_record.scorecard = scorecard
+                session_record.ai_summary = summary
+                await self.repository.update(session_record)
+                logger.info(f"Session scored: {scorecard.get('overall_score', '?')}/10")
+            except Exception as e:
+                logger.error(f"Scoring failed (session still saved): {e}")
+
+        return session_record
+
     async def _get_or_404(self, session_id: UUID, user_id: UUID) -> PitchSession:
         session_record = await self.repository.get_by_id_and_user(session_id, user_id)
         if not session_record:
