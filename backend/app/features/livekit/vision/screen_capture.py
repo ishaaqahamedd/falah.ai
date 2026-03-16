@@ -8,7 +8,7 @@ from livekit import rtc
 
 logger = logging.getLogger("vision-pipeline")
 
-async def stream_screen_to_gemini(room: rtc.Room, gemini_session, fps: float = 0.5):
+async def stream_screen_to_gemini(room: rtc.Room, gemini_session, fps: float = 0.3):
     """
     Subscribes to all screen-share tracks and pushes frames to Gemini's Live API.
     This bypasses the livekit-plugins-google missing VideoFrame handler by manually

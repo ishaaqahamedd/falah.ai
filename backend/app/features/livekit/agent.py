@@ -31,6 +31,12 @@ class PersonaAgent(Agent):
             llm=google.realtime.RealtimeModel(
                 model="gemini-2.5-flash-native-audio-preview-12-2025",
                 voice=voice_id,
+                context_window_compression=types.ContextWindowCompressionConfig(
+                    trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
+                    sliding_window=types.SlidingWindow(
+                        target_tokens=settings.CONTEXT_TARGET_TOKENS,
+                    ),
+                ),
             ),
         )
         self._opening_instruction = (
@@ -50,6 +56,8 @@ class PersonaAgent(Agent):
 
 class TranscriptRecorder:
     """Listens to AgentSession events and records user/agent conversation turns."""
+
+    MAX_TURNS = 100
 
     def __init__(self, session: AgentSession):
         self.session = session
@@ -72,6 +80,9 @@ class TranscriptRecorder:
             "text": text,
             "timestamp": round(event.created_at - self._start_time, 2),
         })
+        # Prune old turns to prevent unbounded memory growth
+        if len(self.turns) > self.MAX_TURNS:
+            self.turns = self.turns[-self.MAX_TURNS:]
 
     def get_transcript(self) -> list[dict]:
         return self.turns
@@ -151,18 +162,25 @@ def _build_dynamic_prompt(
     # Dynamic focus label — known types get specific labels, others get generic
     focus_label = FOCUS_LABELS.get(persona_type, "KEY FOCUS AREAS")
 
-    # Build the intelligence dossier from all available context
-    dossier_parts = []
+    # Build the intelligence dossier from all available context (truncated to limit token usage)
+    _MAX_BRIEFING = 2000
+    _MAX_CRM = 1000
+    dossier_parts: list[str] = []
     if briefing_context:
-        dossier_parts.append(f"--- AI-Generated Briefing (from uploaded docs) ---\n{briefing_context}")
+        truncated = briefing_context[:_MAX_BRIEFING]
+        suffix = "... [truncated]" if len(briefing_context) > _MAX_BRIEFING else ""
+        dossier_parts.append(f"--- AI-Generated Briefing (from uploaded docs) ---\n{truncated}{suffix}")
     if crm_context:
-        dossier_parts.append(f"--- Manual Notes from User ---\n{crm_context}")
+        truncated = crm_context[:_MAX_CRM]
+        suffix = "... [truncated]" if len(crm_context) > _MAX_CRM else ""
+        dossier_parts.append(f"--- Manual Notes from User ---\n{truncated}{suffix}")
 
     dossier = "\n\n".join(dossier_parts) if dossier_parts else "No prior context provided."
 
-    # Build session history section for cross-session adaptation
+    # Build session history section for cross-session adaptation (limit to most recent)
     history_section = ""
     if session_history:
+        session_history = session_history[-1:]
         history_entries = []
         for i, entry in enumerate(session_history, 1):
             date = entry.get("date", "Unknown date")
@@ -261,8 +279,8 @@ async def entrypoint(ctx: JobContext):
     # grab frames from the screenshare track and push them to Google Realtime Model.
     session = AgentSession(
         video_sampler=VoiceActivityVideoSampler(
-            speaking_fps=1.0, # Default — 1 frame/sec while user talks
-            silent_fps=0.5    # Slightly slower while silent
+            speaking_fps=settings.VIDEO_SPEAKING_FPS,
+            silent_fps=settings.VIDEO_SILENT_FPS,
         )
     )
 
