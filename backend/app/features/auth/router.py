@@ -7,7 +7,7 @@ from typing import Annotated
 
 from app.db.database import get_db
 from app.core.config import settings
-from .schemas import UserCreate, UserResponse, Token, TokenPayload
+from .schemas import UserCreate, UserResponse, Token, TokenPayload, GoogleAuthRequest
 from .service import AuthService
 from .repository import AuthRepository
 from .models import User
@@ -48,6 +48,13 @@ async def login(
     auth_service: AuthService = Depends(get_auth_service)
 ):
     return await auth_service.authenticate_user(form_data.username, form_data.password)
+
+@router.post("/google", response_model=Token)
+async def google_auth(
+    body: GoogleAuthRequest,
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    return await auth_service.authenticate_google(body.credential)
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { register, login } from '../../features/auth/api';
+import { GoogleSignInButton } from '../../features/auth/GoogleSignInButton';
 
 export const SignupPage = () => {
   const [email, setEmail] = useState('');
@@ -109,6 +110,17 @@ export const SignupPage = () => {
               {loading ? 'Creating...' : 'Create Account'}
             </button>
           </form>
+
+          <div className="flex items-center my-6">
+            <div className="flex-1 border-t border-border-primary" />
+            <span className="px-4 text-text-secondary text-sm">or</span>
+            <div className="flex-1 border-t border-border-primary" />
+          </div>
+
+          <GoogleSignInButton
+            onSuccess={() => navigate('/')}
+            onError={(msg) => setError(msg)}
+          />
 
           <div className="mt-6 text-center text-text-secondary text-sm">
             Already have an account?{' '}
