@@ -19,6 +19,8 @@ export function LivePitchPage() {
 
   const persona = location.state?.persona;
   const context = location.state?.context || '';
+  const selectedMicId = location.state?.selectedMicId || '';
+  const selectedSpeakerId = location.state?.selectedSpeakerId || '';
 
   const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +61,11 @@ export function LivePitchPage() {
       data-lk-theme="default"
       className="flex-grow flex flex-col relative"
       onDisconnected={handleEnd}
-      options={{ adaptiveStream: false }}
+      options={{
+        adaptiveStream: false,
+        audioCaptureDefaults: selectedMicId ? { deviceId: selectedMicId } : undefined,
+        audioOutputDefaults: selectedSpeakerId ? { deviceId: selectedSpeakerId } : undefined,
+      }}
     >
       <LivePitchContent onEnd={handleEnd} />
       <RoomAudioRenderer />

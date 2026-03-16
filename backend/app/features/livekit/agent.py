@@ -31,12 +31,23 @@ class PersonaAgent(Agent):
             llm=google.realtime.RealtimeModel(
                 model="gemini-2.5-flash-native-audio-preview-12-2025",
                 voice=voice_id,
+                # --- Context Management ---
                 context_window_compression=types.ContextWindowCompressionConfig(
                     trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
                     sliding_window=types.SlidingWindow(
                         target_tokens=settings.CONTEXT_TARGET_TOKENS,
                     ),
                 ),
+                # --- Latency: disable thinking for instant conversational responses ---
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=settings.THINKING_BUDGET,
+                ),
+                # --- Natural conversation: adapt tone/emotion to user's voice ---
+                enable_affective_dialog=True,
+                # --- Smart silence: model stays quiet when input isn't directed at it ---
+                proactivity=True,
+                # --- Session resumption: transparent reconnection on connection drops ---
+                session_resumption=types.SessionResumptionConfig(handle=None),
             ),
         )
         self._opening_instruction = (
@@ -99,28 +110,44 @@ async def _save_session_to_db(
     transcript: list[dict],
     duration_seconds: int,
 ):
-    """Save a completed session and auto-trigger scoring + summary."""
-    from app.db.database import AsyncSessionLocal
+    """Save a completed session and auto-trigger scoring + summary.
+
+    Creates a fresh engine scoped to the agent worker's own event loop.
+    The shared engine from database.py is bound to FastAPI's loop and causes
+    'Future attached to a different loop' errors when reused here.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
     # Import models so SQLAlchemy metadata knows about FK-referenced tables.
     from app.features.auth.models import User  # noqa: F401
     from app.features.personas.models import Persona  # noqa: F401
     from app.features.sessions.service import SessionService
     from app.features.sessions.repository import SessionRepository
 
-    async with AsyncSessionLocal() as db:
-        try:
-            service = SessionService(repository=SessionRepository(db))
-            session_record = await service.create_completed_session(
-                user_id=user_id,
-                persona_id=persona_id,
-                persona_snapshot=persona_snapshot,
-                transcript=transcript,
-                duration_seconds=duration_seconds,
-            )
-            logger.info(f"[Agent] Session saved to DB: {session_record.id}")
-        except Exception as e:
-            logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
-            await db.rollback()
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            try:
+                service = SessionService(repository=SessionRepository(db))
+                session_record = await service.create_completed_session(
+                    user_id=user_id,
+                    persona_id=persona_id,
+                    persona_snapshot=persona_snapshot,
+                    transcript=transcript,
+                    duration_seconds=duration_seconds,
+                )
+                logger.info(f"[Agent] Session saved to DB: {session_record.id}")
+            except Exception as e:
+                logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
+                await db.rollback()
+    finally:
+        await agent_engine.dispose()
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +318,7 @@ async def entrypoint(ctx: JobContext):
     # 5. Register shutdown callback to save transcript after session ends
     async def on_shutdown(reason: str):
         logger.info(f"[Agent] Shutdown triggered: {reason}")
+        heartbeat_task.cancel()
         transcript = recorder.get_transcript()
         duration = int(time.time() - start_time)
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving...")
@@ -308,6 +336,17 @@ async def entrypoint(ctx: JobContext):
             logger.warning(f"[Agent] Skipping save: user_id={bool(user_id)}, turns={len(transcript)}")
 
     ctx.add_shutdown_callback(on_shutdown)
+
+    # 6. Periodic heartbeat logger — tracks session health every 60s
+    async def _heartbeat():
+        while True:
+            await asyncio.sleep(60)
+            elapsed = int(time.time() - start_time)
+            mins = elapsed // 60
+            turns = len(recorder.get_transcript())
+            logger.info(f"[Agent] Heartbeat: {mins}m elapsed, {turns} transcript turns captured")
+
+    heartbeat_task = asyncio.create_task(_heartbeat())
 
     logger.info("[Agent] Starting audio/vision session...")
 

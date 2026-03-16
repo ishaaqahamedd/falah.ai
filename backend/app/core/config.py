@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     VIDEO_SILENT_FPS: float = 0.2         # Frames/sec while silent
     VIDEO_INTERVAL_DIRECT: float = 2.0    # Min seconds between frames (direct WS path)
 
+    # Latency optimization
+    THINKING_BUDGET: int = 128            # 128=minimal reasoning (~100-300ms), 0=disabled, -1=auto (2-5s delay)
+
     # System instruction limits
     MAX_BRIEFING_CHARS: int = 2000        # ~500 tokens
     MAX_CRM_CHARS: int = 1000             # ~250 tokens

@@ -95,12 +95,23 @@ async def pitch_websocket(websocket: WebSocket, persona_id: str):
     config = types.LiveConnectConfig(
         response_modalities=[types.Modality.AUDIO],
         system_instruction=types.Content(parts=[types.Part.from_text(text=system_instruction)]),
+        # --- Context Management ---
         context_window_compression=types.ContextWindowCompressionConfig(
             trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
             sliding_window=types.SlidingWindow(
                 target_tokens=settings.CONTEXT_TARGET_TOKENS,
             ),
         ),
+        # --- Latency: disable thinking for instant conversational responses ---
+        thinking_config=types.ThinkingConfig(
+            thinking_budget=settings.THINKING_BUDGET,
+        ),
+        # --- Natural conversation: adapt tone/emotion to user's voice ---
+        enable_affective_dialog=True,
+        # --- Smart silence: model stays quiet when input isn't directed at it ---
+        proactivity=types.ProactivityConfig(proactive_audio=True),
+        # --- Session resumption: transparent reconnection on connection drops ---
+        session_resumption=types.SessionResumptionConfig(handle=None),
     )
     
     logger.info(f"Connecting to Gemini Live for Persona: {persona_id}")
