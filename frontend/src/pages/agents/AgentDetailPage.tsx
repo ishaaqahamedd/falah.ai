@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPersona, updatePersona } from '../../features/personas/api';
 import { PERSONA_OPTIONS } from '../../entities/personas/constants';
-import { ChevronLeftIcon, PlayIcon } from '../../shared/ui/Icons';
+import { ChevronLeftIcon, PlayIcon, GlobeIcon, LockIcon } from '../../shared/ui/Icons';
 import { Drawer } from '../../shared/ui/Drawer';
 import { PreFlightDrawer } from '../../widgets/preflight-drawer/PreFlightDrawer';
 
@@ -16,6 +16,8 @@ export function AgentDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const [showVisibilityConfirm, setShowVisibilityConfirm] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   useEffect(() => {
     loadPersona();
@@ -53,6 +55,20 @@ export function AgentDetailPage() {
       console.error('Failed to update persona:', e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    if (!id || isPreset) return;
+    setTogglingVisibility(true);
+    try {
+      const updated = await updatePersona(id, { is_public: !persona.is_public });
+      setPersona(updated);
+    } catch (e) {
+      console.error('Failed to toggle visibility:', e);
+    } finally {
+      setTogglingVisibility(false);
+      setShowVisibilityConfirm(false);
     }
   };
 
@@ -121,10 +137,42 @@ export function AgentDetailPage() {
               </>
             )}
           </div>
-          {isPreset && (
+          {isPreset ? (
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-surface-tertiary text-text-muted uppercase tracking-wider">
               Starter
             </span>
+          ) : (
+            <div className="flex items-center gap-2">
+              {persona.is_public ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400">
+                    <GlobeIcon className="w-3.5 h-3.5" />
+                    Public
+                  </span>
+                  <button
+                    onClick={() => setShowVisibilityConfirm(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors"
+                  >
+                    <LockIcon className="w-3.5 h-3.5" />
+                    Make Private
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-surface-tertiary text-text-muted">
+                    <LockIcon className="w-3.5 h-3.5" />
+                    Private
+                  </span>
+                  <button
+                    onClick={() => setShowVisibilityConfirm(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                  >
+                    <GlobeIcon className="w-3.5 h-3.5" />
+                    Make Public
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -221,6 +269,52 @@ export function AgentDetailPage() {
         onClose={() => setShowPreflight(false)}
         persona={persona}
       />
+
+      {/* Visibility Confirmation Modal */}
+      {showVisibilityConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-surface-secondary border border-border-primary rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                persona.is_public ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+              }`}>
+                {persona.is_public
+                  ? <LockIcon className="w-5 h-5 text-amber-400" />
+                  : <GlobeIcon className="w-5 h-5 text-emerald-400" />
+                }
+              </div>
+              <h3 className="text-lg font-bold text-text-primary">
+                {persona.is_public ? 'Make Private?' : 'Share with Community?'}
+              </h3>
+            </div>
+            <p className="text-sm text-text-secondary">
+              {persona.is_public
+                ? `"${persona.name}" will no longer be visible to other users in the community.`
+                : `"${persona.name}" will be visible to all logged-in users. They can start practice sessions with this agent but cannot edit or access your uploaded documents.`
+              }
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowVisibilityConfirm(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-tertiary transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleToggleVisibility}
+                disabled={togglingVisibility}
+                className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50 cursor-pointer ${
+                  persona.is_public
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700'
+                }`}
+              >
+                {togglingVisibility ? 'Updating...' : persona.is_public ? 'Make Private' : 'Share Publicly'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

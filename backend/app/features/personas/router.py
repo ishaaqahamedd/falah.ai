@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends
-from typing import Annotated
+from fastapi import APIRouter, Depends, Query
+from typing import Annotated, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
 from app.features.auth.router import get_current_user
 from app.features.auth.models import User
-from .schemas import PersonaCreate, PersonaUpdate, PersonaResponse
+from .schemas import PersonaCreate, PersonaUpdate, PersonaResponse, CommunityPersonaResponse
 from .repository import PersonaRepository
 from .service import PersonaService
 
@@ -31,6 +31,19 @@ async def list_templates():
     """Return starter persona templates for quick-start creation."""
     from .templates import PERSONA_TEMPLATES
     return PERSONA_TEMPLATES
+
+
+@router.get("/community", response_model=list[CommunityPersonaResponse])
+async def list_community_personas(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: PersonaService = Depends(get_persona_service),
+    search: Optional[str] = Query(None, description="Search by name, role, or type"),
+    type: Optional[str] = Query(None, description="Filter by persona type"),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+):
+    """List all public community personas."""
+    return await service.list_community_personas(search, type, offset, limit)
 
 
 @router.post("/", response_model=PersonaResponse, status_code=201)

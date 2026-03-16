@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from uuid import UUID
 
 from .models import Persona
-from .schemas import PersonaCreate, PersonaUpdate
+from .schemas import PersonaCreate, PersonaUpdate, CommunityPersonaResponse
 from .repository import PersonaRepository
 
 
@@ -45,3 +45,18 @@ class PersonaService:
     async def delete_persona(self, persona_id: UUID, user_id: UUID) -> None:
         persona = await self.get_persona(persona_id, user_id)
         await self.repository.delete(persona)
+
+    async def list_community_personas(
+        self,
+        search: str | None = None,
+        type_filter: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[CommunityPersonaResponse]:
+        rows = await self.repository.list_public(search, type_filter, offset, limit)
+        return [
+            CommunityPersonaResponse.model_validate(
+                {**persona.__dict__, "creator_name": creator_name, "user_id": persona.user_id}
+            )
+            for persona, creator_name in rows
+        ]

@@ -13,5 +13,6 @@ export {
   ChevronRightIcon,
   UserCircleIcon,
   XIcon,
+  LockIcon,
   PlayIcon,
 } from './Icons';

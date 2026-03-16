@@ -29,7 +29,10 @@ class LivekitService:
 
         try:
             persona_uuid = UUID(persona_id)
+            # Try user-owned first, then fall back to public community agent
             persona = await self.persona_repo.get_by_id_and_user(persona_uuid, user_id)
+            if not persona:
+                persona = await self.persona_repo.get_public_by_id(persona_uuid)
             if persona:
                 metadata["persona_config"] = {
                     "type": str(persona.type),
