@@ -35,19 +35,20 @@ async def get_current_user(
     auth_service = AuthService(repository=AuthRepository(db))
     return await auth_service.get_user_by_id(uuid.UUID(token_data.sub))
 
-@router.post("/register", response_model=UserResponse)
-async def register(
-    user_in: UserCreate, 
-    auth_service: AuthService = Depends(get_auth_service)
-):
-    return await auth_service.register_user(user_in)
+# Manual auth routes commented out — Google OAuth only for now
+# @router.post("/register", response_model=UserResponse)
+# async def register(
+#     user_in: UserCreate,
+#     auth_service: AuthService = Depends(get_auth_service)
+# ):
+#     return await auth_service.register_user(user_in)
 
-@router.post("/login", response_model=Token)
-async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    auth_service: AuthService = Depends(get_auth_service)
-):
-    return await auth_service.authenticate_user(form_data.username, form_data.password)
+# @router.post("/login", response_model=Token)
+# async def login(
+#     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+#     auth_service: AuthService = Depends(get_auth_service)
+# ):
+#     return await auth_service.authenticate_user(form_data.username, form_data.password)
 
 @router.post("/google", response_model=Token)
 async def google_auth(

@@ -1,14 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { register, login } from '../../features/auth/api';
 import { GoogleSignInButton } from '../../features/auth/GoogleSignInButton';
 
 export const SignupPage = () => {
-  const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
@@ -25,23 +20,6 @@ export const SignupPage = () => {
       setShowForm(true);
     };
   }, []);
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      await register(email, fullName, password);
-      await login(email, password);
-      navigate('/');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      setError(axiosErr.response?.data?.detail || 'Failed to register');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
@@ -63,59 +41,6 @@ export const SignupPage = () => {
               {error}
             </div>
           )}
-
-          <form onSubmit={handleSignup} className="space-y-5">
-            <div>
-              <label className="block text-text-secondary text-sm mb-2">Full Name</label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-surface border border-border-primary rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="Jane Doe"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-text-secondary text-sm mb-2">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-surface border border-border-primary rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="you@company.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-text-secondary text-sm mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface border border-border-primary rounded-lg px-4 py-3 text-text-primary focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors flex justify-center items-center"
-            >
-              {loading ? 'Creating...' : 'Create Account'}
-            </button>
-          </form>
-
-          <div className="flex items-center my-6">
-            <div className="flex-1 border-t border-border-primary" />
-            <span className="px-4 text-text-secondary text-sm">or</span>
-            <div className="flex-1 border-t border-border-primary" />
-          </div>
 
           <GoogleSignInButton
             onSuccess={() => navigate('/')}

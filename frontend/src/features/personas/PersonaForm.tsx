@@ -306,7 +306,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                     </div>
                   ))}
                   {formData.scoring_criteria.length === 0 && (
-                    <p className="text-xs text-text-muted italic">No custom criteria — will use default 5 pitch dimensions.</p>
+                    <p className="text-xs text-text-muted italic">No custom criteria — will use default scoring dimensions.</p>
                   )}
                 </div>
 

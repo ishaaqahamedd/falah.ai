@@ -1,210 +1,322 @@
-AI Sales & Investor Pitch Simulator - Master Build Specification
-
-Target: Gemini Live Agent Challenge
-Models: gemini-2.5-flash-native-audio-preview-12-2025 (Live API) & gemini-embedding-2-preview (CRM Context)
-
-🤖 INSTRUCTIONS FOR THE AI CODING ASSISTANT
-
-You are tasked with building a full-stack real-time Voice & Vision application.
-Read this entire document carefully before writing code. You must implement the exact file structure, use the specified libraries, and follow the critical Audio and WebSocket logic provided below.
-
-1. Tech Stack & Initialization
-
-Backend: Python 3.11+, FastAPI, Uvicorn, WebSockets, google-genai (The new SDK, NOT google-generativeai).
-
-Frontend: React (Vite), Tailwind CSS.
-
-Scaffolding Commands (Run these first):
-
-npx create-vite@latest frontend --template react
-
-cd frontend && npm install tailwindcss postcss autoprefixer && npx tailwindcss init -p
-
-mkdir backend && cd backend && python -m venv venv && source venv/bin/activate
-
-pip install fastapi uvicorn websockets google-genai pydantic
-
-2. File Structure Required
-
-/backend
-  ├── main.py              # FastAPI server & WebSocket Bidi-streaming loop
-  ├── requirements.txt
-/frontend
-  ├── public/
-  │   └── pcm-processor.js # CRITICAL: AudioWorklet for 16kHz downsampling
-  ├── src/
-  │   ├── App.jsx          # Main UI routing and state management
-  │   └── index.css        # Tailwind imports
-
-
-🧠 BACKEND SPECIFICATION (backend/main.py)
-
-Goal: Create a WebSocket endpoint that injects CRM context AND dynamic user-provided transcripts, connects to the Gemini Live API, and proxies the bidi-stream.
-
-Key Requirements:
-
-Initialize client = genai.Client().
-
-Define a mock CRM dictionary (e.g., {"investor_1": "Strict VC, hates buzzwords, cares about revenue.", "client_1": "Enterprise CTO, cares about SOC2 compliance."}).
-
-Optional: Use client.models.embed_content(model="gemini-embedding-2-preview", contents=...) to generate a vector for the context logs, but for the MVP, inject the text directly into the system prompt.
-
-The WebSocket Loop (/ws/pitch/{persona_id}):
-
-Accept the connection.
-
-CRITICAL - Dynamic Context Handshake: Wait for the first message from the client to be a JSON object containing the dynamic transcript: setup_data = await websocket.receive_json(). Extract transcript = setup_data.get("transcript", "").
-
-Establish async with client.aio.live.connect(model="gemini-2.5-flash-native-audio-preview-12-2025", config=config) as session:
-
-The config must contain response_modalities=["AUDIO"]. The system_instruction must combine the base CRM data AND the dynamically provided transcript so the AI has full context of previous SDR calls or emails.
-
-Use asyncio.gather to run two tasks concurrently:
-
-receive_from_client: Await websocket.receive_json(). If it has "audio", send as mime_type="audio/pcm;rate=16000". If it has "video", send as mime_type="image/jpeg".
-
-receive_from_gemini: Await session.receive(). If response.server_content.model_turn exists, extract part.inline_data.data (Base64) and send to the React websocket as {"audio": base64_string}. If response.server_content.interrupted is true, send {"interrupted": true}.
-
-🎙️ FRONTEND AUDIO SPECIFICATION (CRITICAL)
-
-The Gemini Live API requires strictly 16kHz 16-bit PCM audio input, and returns 24kHz 16-bit PCM output.
-
-File 1: public/pcm-processor.js (Write this exactly)
-
-You must create this Web Audio API Worklet to capture the microphone and downsample it safely.
-
-class PCMProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this.buffer = new Int16Array(2048);
-    this.offset = 0;
-  }
-  process(inputs, outputs, parameters) {
-    const input = inputs[0];
-    if (input.length > 0) {
-      const channelData = input[0];
-      for (let i = 0; i < channelData.length; i++) {
-        // Convert Float32 [-1.0, 1.0] to Int16 [-32768, 32767]
-        let s = Math.max(-1, Math.min(1, channelData[i]));
-        this.buffer[this.offset++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        if (this.offset >= this.buffer.length) {
-          this.port.postMessage(this.buffer);
-          this.offset = 0;
-        }
-      }
-    }
-    return true;
-  }
-}
-registerProcessor('pcm-processor', PCMProcessor);
-
-
-File 2: src/App.jsx Core Logic
-
-Implement the following core functions inside the React component:
-
-State: currentScreen ('dashboard', 'preflight', 'live', 'analytics'), persona (investor or client), isConnected, isScreenSharing, transcript (string for dynamic call notes).
-
-WebSocket Handshake:
-
-Once the WebSocket connects (onopen), immediately send the setup payload: socket.send(JSON.stringify({ transcript: transcript })).
-
-Audio Capture (Microphone):
-
-navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000 } })
-
-Initialize AudioContext({ sampleRate: 16000 }).
-
-Load the worklet: await audioCtx.audioWorklet.addModule('/pcm-processor.js').
-
-Listen to workletNode.port.onmessage. Convert the Int16Array to Base64 and send via socket.send(JSON.stringify({ audio: base64Data })).
-
-Video Capture (Screen Share / Pitch Deck):
-
-Button triggers navigator.mediaDevices.getDisplayMedia({ video: true }).
-
-Attach stream to a hidden <video> element.
-
-Create a setInterval that runs every 1000ms (1 FPS max for Live API).
-
-Draw the video frame to a hidden <canvas>, call canvas.toDataURL('image/jpeg', 0.5), strip the data prefix, and send socket.send(JSON.stringify({ video: base64String })).
-
-Audio Playback (AI Voice):
-
-When socket receives {"audio": "base64..."}, decode it to an ArrayBuffer.
-
-Convert Int16 to Float32.
-
-Use audioCtx.createBuffer() (set to 24000 sample rate) and audioCtx.createBufferSource() to play the chunk.
-
-Interruption Handling (Barge-in):
-
-If socket receives {"interrupted": true}, immediately stop the current AudioBufferSourceNode to cut the AI off gracefully.
-
-📱 FRONTEND USER FLOW (Screen-by-Screen)
-
-The UI should be built with Tailwind CSS and transition cleanly between these four states.
-
-Screen 1: The CRM Dashboard (currentScreen === 'dashboard')
-
-Purpose: Select the target audience and view their background data.
-
-Layout:
-
-Header: "Pitch Simulator Dashboard".
-
-Main Grid: Display 2-3 Persona Cards (e.g., "Sarah - Tier 1 VC", "David - Enterprise CTO").
-
-Persona Card Content: Name, Role, and a mocked "CRM History" snippet (e.g., Past emails: Expressed concerns about our ARR growth.).
-
-Action: Clicking a persona sets the persona state and transitions to the Pre-flight screen.
-
-Screen 2: The Pre-Flight Room (currentScreen === 'preflight')
-
-Purpose: Hardware setup, screen share initiation, and context injection.
-
-Layout:
-
-Left Column: Selected Persona details.
-
-Middle Column (NEW): A large <textarea> labeled "Paste Previous Call Transcript / Email Threads". This maps to the transcript state and allows users to dynamically feed prior SDR notes into the AI's system prompt.
-
-Right Column: Hardware checks.
-
-A "Test Microphone" visualizer.
-
-A large "Share Screen (Pitch Deck)" button. When clicked, it triggers getDisplayMedia and shows a small preview thumbnail of the shared window.
-
-Action: A massive, pulsing "Start Live Pitch" button. Clicking this opens the WebSocket to the FastAPI backend, sends the transcript JSON as the initial handshake message, and transitions to the Live screen.
-
-Screen 3: The Live Pitch (currentScreen === 'live')
-
-Purpose: The immersive multimodal bidi-streaming experience.
-
-Layout:
-
-Split Screen UI.
-
-Top/Left Pane (Vision Context): A live preview of the screen being shared (the user's pitch deck). This reassures the user that the AI can "see" the slides.
-
-Bottom/Right Pane (AI Avatar & Status):
-
-A dynamic avatar or waveform that animates when the AI is speaking, and returns to a "Listening..." state when the user is speaking or when {"interrupted": true} is received.
-
-A scrolling transcript or connection status log (Connected to Gemini Live..., Sending audio chunks...).
-
-Action: A "End Pitch" button in red. Clicking this closes the WebSocket connection, stops media tracks, and transitions to the Analytics screen.
-
-Screen 4: Post-Pitch Analytics (currentScreen === 'analytics')
-
-Purpose: Debrief and provide value.
-
-Layout:
-
-Simple summary dashboard showing the duration of the pitch.
-
-(Optional for MVP) A text block displaying a mock AI scorecard: "Empathy: 8/10, Objection Handling: 5/10 - You missed the question about SOC2 compliance on slide 4."
-
-Action: "Return to Dashboard" button.
-
-NOW, BEGIN WRITING THE CODE FOR THE FRONTEND AND BACKEND.
+Falah.ai — Product Requirements Document (PRD)
+================================================
+
+1. PRODUCT VISION
+-----------------
+Falah.ai is a general-purpose AI agent platform for live, real-time conversations.
+Users build custom AI personas — investor VCs, enterprise clients, interview coaches,
+onboarding guides, trainers, support agents, or anything they imagine — then go live
+with them using real-time audio and screen sharing. After every session, the AI scores
+performance and generates actionable feedback.
+
+The platform is NOT limited to pitches or sales. Any conversation skill that benefits
+from realistic practice with an intelligent counterpart is a valid use case.
+
+Target: Google Gemini Live API Challenge
+Models: Gemini 2.5 Flash (native audio + vision), Gemini Embedding 2 (context vectors)
+
+
+2. TECH STACK
+-------------
+Backend:
+  - Python 3.12+, FastAPI, Uvicorn
+  - SQLAlchemy (async) + asyncpg + PostgreSQL
+  - Alembic (migrations), pgvector (semantic search)
+  - google-genai SDK (Gemini Live API + Embeddings)
+  - LiveKit Agents SDK (WebRTC media routing)
+  - JWT + bcrypt auth, Google OAuth
+
+Frontend:
+  - React 19, Vite, TypeScript
+  - Tailwind CSS v4
+  - Zustand (state), React Router v7
+  - LiveKit Client SDK + React Components
+  - Axios (HTTP)
+
+Infrastructure:
+  - LiveKit Cloud (WebRTC media server)
+  - PostgreSQL (with pgvector extension)
+  - Docker + Docker Compose (deployment)
+
+
+3. CORE FEATURES
+----------------
+
+3.1 Custom AI Agents (Personas)
+  - Users create agents with: type, name, role, personality, focus areas, voice
+  - Advanced settings: custom scoring criteria, behavior rules, opening message
+  - 8 configurable AI voices (Puck, Charon, Kore, Fenrir, Aoede, Leda, Orus, Zephyr)
+  - 7 starter templates: Investor VC, Enterprise Client, Onboarding Guide,
+    Product Trainer, KT Specialist, Interview Coach, Support Agent
+  - Community sharing: make agents public, discover others' agents, clone templates
+
+3.2 Live Sessions (Real-Time Audio + Vision)
+  - WebRTC-powered real-time audio via LiveKit
+  - Screen sharing: AI agent sees user's screen (slides, docs, dashboards)
+  - Voice Activity Detection controls video frame sampling:
+    - 0.5 FPS while user speaks (captures important content)
+    - 0.2 FPS during silence (reduces token usage)
+  - Affective dialog: AI adapts tone to match user's vocal cues
+  - Proactivity: AI speaks when appropriate (nudges during silence)
+  - Barge-in support: user can interrupt the AI mid-sentence
+  - Context window compression: triggers at 90K tokens, compresses to 45K
+
+3.3 Session Scoring & Analytics
+  - Post-session AI scoring via Gemini Flash
+  - Default 5 scoring dimensions: Clarity, Objection Handling, Engagement,
+    Context Awareness, Closing Strength (1-10 each)
+  - Custom scoring: agents can define their own dimensions
+  - AI-generated session summary (2-3 sentences)
+  - Full transcript with timestamps (user + agent turns)
+  - Session history with duration, scores, and status tracking
+
+3.4 Context Intelligence
+  - Upload documents (emails, transcripts, notes, briefs) per agent
+  - Gemini Embedding 2 generates 3072-dim vectors for semantic search
+  - AI synthesizes uploaded docs into a structured pre-call briefing:
+    Key Concerns, Communication Summary, Decision Factors, Data Points
+  - Briefing cached on persona record, refreshable on demand
+  - Manual CRM notes injected at session start (max 1000 chars)
+
+3.5 Adaptive Session History
+  - Agent prompt includes most recent completed session's summary + score
+  - Adaptive behavior rules: don't repeat, probe weak areas, escalate difficulty,
+    introduce new angles, acknowledge improvement
+  - Persona snapshot frozen at session creation for immutable scoring
+
+3.6 Connectors (Planned)
+  - Gmail, Google Docs, Slack, Salesforce CRM, HubSpot, Notion
+  - Auto-import context from external sources into agent sessions
+  - Status: Coming Soon (UI scaffolded, not yet functional)
+
+3.7 Guided Onboarding
+  - Voice-driven onboarding agent ("Falah") walks new users through setup
+  - 4 steps: Welcome → Explore UI → Create First Agent → First Session
+  - Screen-aware: agent sees user's screen and references visible elements
+  - Auto-end at 4:15 with graceful wrap-up starting at 3:45
+  - Returning users get personalized re-entry based on previous progress
+  - Floating bubble UI that expands/collapses over main app
+
+3.8 Authentication
+  - Email/password registration with bcrypt hashing
+  - Google OAuth (ID token verification)
+  - JWT tokens (HS256, 7-day expiry)
+  - Onboarding status tracked per user
+
+
+4. USER FLOW
+------------
+
+4.1 First-Time User
+  Sign Up → Welcome Modal → Voice Onboarding (optional) →
+  Explore Agents Tab → Create Agent (or pick from Community) →
+  Pre-Flight Check (mic, speaker, context) → Start Live Session →
+  Session Ends → View Scorecard + Transcript
+
+4.2 Returning User
+  Sign In → Agents Page → Select Agent → Pre-Flight →
+  Go Live (with session history adaptation) → Review Results
+
+4.3 Community Flow
+  Browse Community → Preview Agent → Use Template (clones to your agents) →
+  or Start Session directly with a public agent
+
+4.4 Live Session Flow
+  Pre-Flight (select mic/speaker, add context notes) →
+  Connecting overlay (4-step setup animation) →
+  Split-screen: Screen Share (left) + AI Status (right) →
+  "Agent Live" header with elapsed timer →
+  End Session → Auto-redirect to session detail with scores
+
+
+5. SCREENS
+----------
+
+5.1 Auth Pages (Login / Signup)
+  - Falah.ai branding with tagline: "Build AI Agents. Master Any Conversation."
+  - Background image with glassmorphism card
+  - Email/password form + Google OAuth button
+  - Animated entrance (fade-in + slide-up)
+
+5.2 Agents Page
+  - Page title: "Agents"
+  - Subtitle: "Your fleet of AI-powered conversation agents"
+  - Starter agents grid (hardcoded presets)
+  - Custom agents grid with create/delete/visibility controls
+  - "Create Agent" button opens full-screen persona form
+
+5.3 Agent Detail Page
+  - Agent header: name, role, type, voice, public/private badge
+  - Config cards: Identity, Personality, Focus Areas, Scoring Criteria
+  - Edit mode for all fields
+  - "Start Session" button → Pre-Flight drawer
+  - Public/private toggle with confirmation modal
+
+5.4 Community Page
+  - Starter templates section (pre-built by platform)
+  - Community agents section (shared by users)
+  - Search + type filter
+  - Preview drawer with full agent details
+  - "Use Template" (clone) or "Start Session" actions
+
+5.5 Sessions Page
+  - Subtitle: "Every session recorded, scored, and ready to review"
+  - Filters: search, agent, sort by date/score/duration
+  - Session cards: agent name, date, duration, overall score (color-coded)
+
+5.6 Session Detail Page
+  - Scorecard with dimension scores (radial or bar chart)
+  - AI summary
+  - Full transcript viewer with user/agent turn highlighting
+  - Agent snapshot (frozen config from session time)
+
+5.7 Live Session Page
+  - Setup overlay with 4-step animation (connecting → setting up agent → audio → ready)
+  - Header: "Agent Live" indicator + elapsed timer + "End Session" button
+  - Left panel: Screen share view (or "Share Your Screen" prompt)
+  - Right panel: AI speaking/listening indicator with pulsing orb
+  - WebRTC connection status footer
+
+5.8 Connectors Page
+  - Subtitle: "Feed real-world data into your agents — emails, docs, CRM, and more"
+  - 6 connector cards (Gmail, Google Docs, Slack, Salesforce, HubSpot, Notion)
+  - All marked "Coming Soon"
+
+5.9 Pre-Flight Drawer
+  - Microphone/speaker device selection
+  - Context notes textarea
+  - Audio level test
+  - "Go Live" button
+
+5.10 Onboarding Components
+  - Welcome Modal (full-screen overlay with gradient header)
+  - Floating Bubble (collapsible, bottom-right)
+  - Progress Card (inline setup checklist)
+
+
+6. API ENDPOINTS
+----------------
+
+Auth (/api/v1/auth/)
+  POST /register        — Create account
+  POST /login           — Email/password login
+  POST /google          — Google OAuth login
+  GET  /me              — Current user info
+
+Personas (/api/v1/personas/)
+  GET    /              — List user's agents
+  POST   /              — Create agent
+  GET    /{id}          — Agent detail
+  PATCH  /{id}          — Update agent
+  DELETE /{id}          — Delete agent
+  GET    /public        — Community agents (search, type filter)
+  GET    /templates     — Starter templates
+
+Sessions (/api/v1/sessions/)
+  POST   /              — Create session record (ACTIVE)
+  PATCH  /{id}          — Update session
+  POST   /{id}/score    — Trigger AI scoring
+  GET    /              — List sessions (filter by agent, limit)
+  GET    /{id}          — Session detail
+
+LiveKit (/api/v1/livekit/)
+  GET /token            — Generate room token (persona_id, context, session_id)
+  GET /onboarding-token — Generate onboarding session token
+
+Context (/api/v1/context/)
+  POST /upload          — Upload document (text + embedding)
+  GET  /briefing        — Get/generate cached briefing for agent
+  GET  /search          — Semantic search across documents
+
+Onboarding (/api/v1/onboarding/)
+  PATCH /progress       — Update onboarding step/status
+
+Legacy WebSocket:
+  /ws/pitch/{persona_id} — Direct Gemini Live streaming (pre-LiveKit)
+
+
+7. DATABASE MODELS
+------------------
+
+User
+  id (UUID), email (unique), password_hash, full_name, is_active
+  auth_provider (local|google), google_id
+  onboarding_status, onboarding_step, onboarding_completed_at, onboarding_summary
+  created_at, updated_at
+
+Persona
+  id (UUID), user_id (FK), type, name, role, personality, focus_areas, voice
+  scoring_criteria (JSONB), behavior_rules (JSONB), opening_message
+  is_public, use_count, cached_briefing, briefing_generated_at
+  created_at, updated_at
+
+PitchSession
+  id (UUID), user_id (FK), persona_id (FK), persona_snapshot (JSONB)
+  transcript (JSONB: [{role, text, timestamp}]), duration_seconds
+  status (active|completed|crashed), scorecard (JSONB), ai_summary
+  started_at, ended_at
+
+ContextDocument
+  id (UUID), user_id (FK), persona_id (FK)
+  filename, content_type, content (text), embedding (vector 3072)
+  metadata_ (JSONB), created_at
+
+
+8. AI AGENT ARCHITECTURE
+-------------------------
+
+8.1 Prompt Construction (_build_dynamic_prompt)
+  Input: persona config + CRM context + briefing + session history
+  Output: Full system prompt with sections:
+    - Identity (name, role)
+    - Core Personality
+    - Focus Areas (label varies by type: "Investment Thesis", "Top Concerns", etc.)
+    - Intelligence Dossier (briefing from docs + manual notes)
+    - Session History (most recent, with adaptive rules)
+    - Behavior Rules (5 defaults + custom)
+    - Opening instruction
+
+8.2 Gemini Live Configuration
+  - Model: gemini-2.5-flash-native-audio
+  - Response modalities: AUDIO only
+  - Context window compression: 90K trigger → 45K target
+  - Thinking budget: 128 tokens (minimal latency)
+  - Affective dialog: enabled
+  - Proactivity: enabled
+
+8.3 LiveKit Agent Worker
+  - Separate Python process from FastAPI server
+  - Reads persona config from room metadata (no DB calls during session)
+  - TranscriptRecorder captures turns (last 100, pruned)
+  - VoiceActivityVideoSampler for adaptive screen capture
+  - Heartbeat logger every 60 seconds
+  - Shutdown callback: persist transcript, trigger scoring, generate summary
+
+8.4 Onboarding Agent
+  - Persona: "Falah" with Aoede voice
+  - 4-step guided flow with step-specific prompts
+  - Screen share detection triggers contextual guidance
+  - 15-second silence nudge
+  - Auto-end sequence: 3:45 warning → 4:00 goodbye → 4:15 hard stop
+
+
+9. KEY ARCHITECTURAL DECISIONS
+------------------------------
+
+  - Room metadata pre-baking: All persona config, briefing, and session history
+    embedded in LiveKit room metadata at token generation time. Agent worker
+    reads directly — zero DB calls during live sessions.
+
+  - Two-process model: FastAPI server + LiveKit agent worker run independently.
+    Agent worker spawns isolated DB engine to avoid event loop conflicts.
+
+  - Persona snapshots: Sessions freeze agent config at creation time.
+    Scoring uses snapshot, not current config — resilient to edits.
+
+  - Post-call scoring: Uses Gemini Flash (fast + cheap). Doesn't block session.
+    Neutral fallback scorecard on error (all 5.0).
+
+  - Token budget management: CRM notes capped at 1000 chars, briefing at 2000 chars,
+    session history limited to 1 most recent. Video frames adaptively sampled.
+
+  - Async throughout: FastAPI + asyncpg + LiveKit SDK — non-blocking I/O everywhere.

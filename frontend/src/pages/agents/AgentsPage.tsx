@@ -74,7 +74,7 @@ export function AgentsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-extrabold text-text-primary tracking-tight">Agents</h1>
-          <p className="text-text-secondary mt-1">Your AI personas for live practice sessions</p>
+          <p className="text-text-secondary mt-1">Your fleet of AI-powered conversation agents</p>
         </div>
         <button
           onClick={() => setIsCreating(true)}

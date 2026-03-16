@@ -217,11 +217,11 @@ function LivePitchContent({ onEnd }: { onEnd: () => void }) {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
           </span>
-          <span className="text-red-500 font-bold uppercase tracking-widest text-sm">Live Pitching</span>
+          <span className="text-red-500 font-bold uppercase tracking-widest text-sm">Agent Live</span>
           <span className="text-text-secondary font-mono text-sm ml-2 bg-surface-tertiary px-3 py-1 rounded-full border border-border-primary">{formatElapsed(elapsedSeconds)}</span>
         </div>
         <button onClick={onEnd} className="bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white px-6 py-2 rounded-full text-sm font-bold border border-red-600/50 transition-colors">
-          End Simulation
+          End Session
         </button>
       </div>
 
@@ -244,8 +244,8 @@ function LivePitchContent({ onEnd }: { onEnd: () => void }) {
           ) : (
             <div className="text-text-muted flex flex-col items-center border-2 border-dashed border-border-primary p-12 rounded-2xl w-full h-full justify-center">
               <svg className="w-16 h-16 mb-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-              <span className="text-xl font-bold text-text-primary mb-2">Share Your Pitch Deck</span>
-              <span className="text-sm mt-2 text-text-secondary text-center max-w-sm mb-6">The AI uses the Gemini 2.5 Flash Native Vision model. Share your screen so it can observe your slides.</span>
+              <span className="text-xl font-bold text-text-primary mb-2">Share Your Screen</span>
+              <span className="text-sm mt-2 text-text-secondary text-center max-w-sm mb-6">Your agent uses real-time vision. Share your screen and it will see exactly what you see.</span>
               <button
                 onClick={() => localParticipant.setScreenShareEnabled(true)}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-transform hover:scale-105"

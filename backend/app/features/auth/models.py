@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, DateTime, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -23,3 +23,4 @@ class User(Base, TimestampMixin):
     onboarding_status = Column(String(20), nullable=False, server_default="pending")
     onboarding_step = Column(String(50), nullable=True)
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
+    onboarding_summary = Column(Text, nullable=True)

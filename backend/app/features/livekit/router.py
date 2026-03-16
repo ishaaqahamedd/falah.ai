@@ -57,16 +57,17 @@ async def get_onboarding_token(
     """Generate a lightweight LiveKit token for the onboarding agent (no session/scoring)."""
     try:
         current_step = current_user.onboarding_step or "welcome"
+        previous_summary = getattr(current_user, "onboarding_summary", None)
         room_name = f"onboarding-{current_user.id}-{int(time.time())}"
 
-        persona_config = get_onboarding_persona_config(current_user.full_name, current_step)
+        persona_config = get_onboarding_persona_config(current_user.full_name, current_step, previous_summary)
 
         metadata = {
             "mode": "onboarding",
             "user_id": str(current_user.id),
             "persona_id": "onboarding",
             "persona_config": persona_config,
-            "context": get_onboarding_system_prompt_suffix(current_step),
+            "context": get_onboarding_system_prompt_suffix(current_step, previous_summary),
         }
         metadata_json = json.dumps(metadata)
         logger.info(f"Onboarding room metadata: {len(metadata_json)} bytes")

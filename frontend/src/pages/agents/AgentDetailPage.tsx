@@ -178,73 +178,71 @@ export function AgentDetailPage() {
       </div>
 
       {/* Config Details */}
-      {!isPreset && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Identity</h3>
-            {editing ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-text-secondary mb-1 block">Type</label>
-                  <input value={editData.type || ''} onChange={(e) => setEditData({ ...editData, type: e.target.value })} className={inputClass} />
-                </div>
-                <div>
-                  <label className="text-xs text-text-secondary mb-1 block">Voice</label>
-                  <input value={editData.voice || ''} onChange={(e) => setEditData({ ...editData, voice: e.target.value })} className={inputClass} />
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Identity</h3>
+          {editing ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-text-secondary mb-1 block">Type</label>
+                <input value={editData.type || ''} onChange={(e) => setEditData({ ...editData, type: e.target.value })} className={inputClass} />
               </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-muted">Type</span>
-                  <span className="text-text-primary font-medium">{persona.type}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-muted">Voice</span>
-                  <span className="text-text-primary font-medium">{persona.voice}</span>
-                </div>
+              <div>
+                <label className="text-xs text-text-secondary mb-1 block">Voice</label>
+                <input value={editData.voice || ''} onChange={(e) => setEditData({ ...editData, voice: e.target.value })} className={inputClass} />
               </div>
-            )}
-          </div>
-
-          <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Personality</h3>
-            {editing ? (
-              <textarea rows={4} value={editData.personality || ''} onChange={(e) => setEditData({ ...editData, personality: e.target.value })} className={inputClass + ' resize-none'} />
-            ) : (
-              <p className="text-sm text-text-secondary leading-relaxed">{persona.personality}</p>
-            )}
-          </div>
-
-          <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Focus Areas</h3>
-            {editing ? (
-              <textarea rows={4} value={editData.focus_areas || ''} onChange={(e) => setEditData({ ...editData, focus_areas: e.target.value })} className={inputClass + ' resize-none'} />
-            ) : (
-              <p className="text-sm text-text-secondary leading-relaxed">{persona.focus_areas}</p>
-            )}
-          </div>
-
-          <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Scoring Criteria</h3>
-            {persona.scoring_criteria && persona.scoring_criteria.length > 0 ? (
-              <div className="space-y-2">
-                {persona.scoring_criteria.map((c: any, i: number) => (
-                  <div key={i} className="flex justify-between text-sm">
-                    <span className="text-text-primary font-medium">{c.label}</span>
-                    <span className="text-text-muted text-xs">{c.desc}</span>
-                  </div>
-                ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-text-muted">Type</span>
+                <span className="text-text-primary font-medium">{persona.type}</span>
               </div>
-            ) : (
-              <p className="text-xs text-text-muted italic">Using default 5 pitch dimensions</p>
-            )}
-          </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-text-muted">Voice</span>
+                <span className="text-text-primary font-medium">{persona.voice}</span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Preset context */}
-      {isPreset && (
+        <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Personality</h3>
+          {editing ? (
+            <textarea rows={4} value={editData.personality || ''} onChange={(e) => setEditData({ ...editData, personality: e.target.value })} className={inputClass + ' resize-none'} />
+          ) : (
+            <p className="text-sm text-text-secondary leading-relaxed">{persona.personality}</p>
+          )}
+        </div>
+
+        <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Focus Areas</h3>
+          {editing ? (
+            <textarea rows={4} value={editData.focus_areas || ''} onChange={(e) => setEditData({ ...editData, focus_areas: e.target.value })} className={inputClass + ' resize-none'} />
+          ) : (
+            <p className="text-sm text-text-secondary leading-relaxed">{persona.focus_areas}</p>
+          )}
+        </div>
+
+        <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Scoring Criteria</h3>
+          {persona.scoring_criteria && persona.scoring_criteria.length > 0 ? (
+            <div className="space-y-2">
+              {persona.scoring_criteria.map((c: any, i: number) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-text-primary font-medium">{c.label}</span>
+                  <span className="text-text-muted text-xs">{c.desc}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-text-muted italic">Using default scoring dimensions</p>
+          )}
+        </div>
+      </div>
+
+      {/* Context (preset agents have background context) */}
+      {persona.history && (
         <div className="bg-surface-secondary border border-border-primary rounded-xl p-6">
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Context</h3>
           <p className="text-sm text-text-secondary">{persona.history}</p>
@@ -290,7 +288,7 @@ export function AgentDetailPage() {
             <p className="text-sm text-text-secondary">
               {persona.is_public
                 ? `"${persona.name}" will no longer be visible to other users in the community.`
-                : `"${persona.name}" will be visible to all logged-in users. They can start practice sessions with this agent but cannot edit or access your uploaded documents.`
+                : `"${persona.name}" will be visible to all logged-in users. They can run live sessions with this agent but cannot edit or access your uploaded documents.`
               }
             </p>
             <div className="flex justify-end gap-3 pt-2">
