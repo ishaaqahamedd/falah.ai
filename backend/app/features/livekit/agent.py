@@ -416,6 +416,23 @@ async def entrypoint(ctx: JobContext):
         )
     )
 
+    # 7. Auto-end onboarding sessions after 5 minutes
+    if is_onboarding:
+        async def _onboarding_auto_end():
+            await asyncio.sleep(240)  # 4m — trigger farewell
+            logger.info("[Agent] Onboarding 4m mark — triggering farewell")
+            farewell = (
+                "Say a warm farewell to the user. Tell them it was great connecting, "
+                "you'll be around whenever they need you, and encourage them to explore "
+                "the platform at their own pace. Keep it to 2-3 sentences max."
+            )
+            session.generate_reply(user_input=farewell)
+            await asyncio.sleep(60)  # 1m buffer — let farewell finish naturally
+            logger.info("[Agent] Onboarding 5m mark — shutting down")
+            await ctx.shutdown()
+
+        asyncio.create_task(_onboarding_auto_end())
+
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))

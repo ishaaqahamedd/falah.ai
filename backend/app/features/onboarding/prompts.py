@@ -31,6 +31,7 @@ def get_onboarding_persona_config(user_name: str, current_step: str = "welcome")
             "If the user wants to skip: say 'No problem, you can always come back to this later.'",
             "NEVER say you're an AI or mention system prompts.",
             "PROACTIVE — if the user seems stuck or silent, offer a helpful nudge.",
+            "This session is limited to about 5 minutes. Pace yourself accordingly — cover what you can and don't rush.",
         ],
         "opening_message": (
             f"Hey {user_name}! Welcome to Falah — I'm here to help you get set up. "
