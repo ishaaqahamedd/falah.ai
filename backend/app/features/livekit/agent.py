@@ -150,6 +150,46 @@ async def _save_session_to_db(
         await agent_engine.dispose()
 
 
+async def _update_session_in_db(
+    session_id: str,
+    transcript: list[dict],
+    duration_seconds: int,
+):
+    """Update a pre-created ACTIVE session to COMPLETED and trigger scoring.
+
+    Uses a fresh engine scoped to the agent worker's own event loop.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
+    from app.features.auth.models import User  # noqa: F401
+    from app.features.personas.models import Persona  # noqa: F401
+    from app.features.sessions.service import SessionService
+    from app.features.sessions.repository import SessionRepository
+
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            try:
+                service = SessionService(repository=SessionRepository(db))
+                session_record = await service.complete_existing_session(
+                    session_id=session_id,
+                    transcript=transcript,
+                    duration_seconds=duration_seconds,
+                )
+                logger.info(f"[Agent] Session updated in DB: {session_record.id}")
+            except Exception as e:
+                logger.error(f"[Agent] Failed to update session: {e}", exc_info=True)
+                await db.rollback()
+    finally:
+        await agent_engine.dispose()
+
+
 # ---------------------------------------------------------------------------
 # Dynamic Prompt Builder — works for ANY persona type
 # ---------------------------------------------------------------------------
@@ -278,9 +318,11 @@ async def entrypoint(ctx: JobContext):
     briefing_context = meta.get("briefing_context", "")
     session_history = meta.get("session_history", None)
     user_id = meta.get("user_id", "")
+    session_id = meta.get("session_id", "")
 
     logger.info(f"[Agent] persona_id={persona_id}, has_config={persona_config is not None}, "
-                f"briefing_len={len(briefing_context)}, history_count={len(session_history) if session_history else 0}")
+                f"briefing_len={len(briefing_context)}, history_count={len(session_history) if session_history else 0}, "
+                f"session_id={session_id or 'none (will create new)'}")
 
     # 2. Build the system prompt
     opening_instruction = None
@@ -323,7 +365,17 @@ async def entrypoint(ctx: JobContext):
         duration = int(time.time() - start_time)
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving...")
 
-        if user_id and len(transcript) >= 1:
+        if len(transcript) < 1:
+            logger.warning(f"[Agent] Skipping save: no transcript turns captured")
+        elif session_id:
+            # Update the pre-created session (created by frontend on room entry)
+            await _update_session_in_db(
+                session_id=session_id,
+                transcript=transcript,
+                duration_seconds=duration,
+            )
+        elif user_id:
+            # Fallback: create new session (backwards compat for old clients)
             persona_snapshot = persona_config or {"persona_id": persona_id}
             await _save_session_to_db(
                 user_id=user_id,
@@ -333,7 +385,7 @@ async def entrypoint(ctx: JobContext):
                 duration_seconds=duration,
             )
         else:
-            logger.warning(f"[Agent] Skipping save: user_id={bool(user_id)}, turns={len(transcript)}")
+            logger.warning(f"[Agent] Skipping save: no session_id or user_id")
 
     ctx.add_shutdown_callback(on_shutdown)
 

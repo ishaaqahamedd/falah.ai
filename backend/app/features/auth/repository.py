@@ -19,6 +19,10 @@ class AuthRepository:
         result = await self.session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
         
+    async def get_user_by_google_id(self, google_id: str) -> Optional[User]:
+        result = await self.session.execute(select(User).where(User.google_id == google_id))
+        return result.scalar_one_or_none()
+
     async def create_user(self, user_in: UserCreate) -> User:
         db_user = User(
             email=user_in.email,
@@ -29,3 +33,22 @@ class AuthRepository:
         await self.session.commit()
         await self.session.refresh(db_user)
         return db_user
+
+    async def create_google_user(self, email: str, full_name: str, google_id: str) -> User:
+        db_user = User(
+            email=email,
+            full_name=full_name,
+            password_hash=None,
+            auth_provider="google",
+            google_id=google_id,
+        )
+        self.session.add(db_user)
+        await self.session.commit()
+        await self.session.refresh(db_user)
+        return db_user
+
+    async def link_google_account(self, user: User, google_id: str) -> User:
+        user.google_id = google_id
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

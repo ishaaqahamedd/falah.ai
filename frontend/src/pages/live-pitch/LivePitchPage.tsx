@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
   useLocalParticipant,
+  useParticipants,
   useTracks,
   VideoTrack
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { getLiveKitToken } from '../../features/livekit/api';
+import { createSession } from '../../features/sessions/api';
 
 const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL;
 
@@ -23,17 +25,29 @@ export function LivePitchPage() {
   const selectedSpeakerId = location.state?.selectedSpeakerId || '';
 
   const [token, setToken] = useState('');
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const initRef = useRef(false);
 
   useEffect(() => {
+    // Guard against React strict mode double-firing
+    if (initRef.current) return;
+    initRef.current = true;
+
     const fetchToken = async () => {
       try {
         const personaId = persona?.id || 'unknown';
         const room = roomName || `session-${personaId}-${Date.now()}`;
-        const response = await getLiveKitToken(room, personaId, context);
+
+        // Create ACTIVE session in DB before entering the room
+        const sessionData = await createSession(personaId, persona);
+        setSessionId(sessionData.id);
+
+        // Pass session_id so agent knows which session to update on shutdown
+        const response = await getLiveKitToken(room, personaId, context, sessionData.id);
         setToken(response.token);
       } catch (e) {
-        setError('Failed to fetch LiveKit token. Are you authenticated?');
+        setError('Failed to connect. Are you authenticated?');
         console.error(e);
       }
     };
@@ -41,7 +55,7 @@ export function LivePitchPage() {
   }, [persona, context, roomName]);
 
   const handleEnd = () => {
-    navigate('/sessions');
+    navigate(sessionId ? `/sessions/${sessionId}` : '/sessions');
   };
 
   if (error) {
@@ -73,9 +87,103 @@ export function LivePitchPage() {
   );
 }
 
+const SETUP_STEPS = [
+  { label: 'Connecting to room...', delay: 0 },
+  { label: 'Setting up your agent...', delay: 1500 },
+  { label: 'Preparing audio channels...', delay: 3000 },
+  { label: 'Almost ready...', delay: 5000 },
+];
+
+function SetupOverlay({ visible }: { visible: boolean }) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [fadeOut, setFadeOut] = useState(false);
+
+  useEffect(() => {
+    const timers = SETUP_STEPS.map((step, i) =>
+      setTimeout(() => setCurrentStep(i), step.delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      setFadeOut(true);
+    }
+  }, [visible]);
+
+  if (fadeOut) {
+    return (
+      <div className="absolute inset-0 z-50 bg-surface flex flex-col items-center justify-center transition-opacity duration-500 opacity-0 pointer-events-none" />
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 z-50 bg-surface flex flex-col items-center justify-center">
+      {/* Pulsing orb */}
+      <div className="relative mb-10">
+        <div className="w-24 h-24 rounded-full bg-blue-600/20 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full bg-blue-500 animate-pulse shadow-[0_0_40px_rgba(59,130,246,0.6)]" />
+        </div>
+        <div className="absolute inset-0 w-24 h-24 rounded-full border-2 border-blue-500/30 animate-ping" />
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-3 w-72">
+        {SETUP_STEPS.map((step, i) => (
+          <div
+            key={step.label}
+            className={`flex items-center gap-3 transition-all duration-500 ${
+              i <= currentStep ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+            }`}
+          >
+            {i < currentStep ? (
+              <svg className="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : i === currentStep ? (
+              <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+              </div>
+            ) : (
+              <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-surface-tertiary" />
+              </div>
+            )}
+            <span className={`text-sm font-medium ${
+              i < currentStep ? 'text-emerald-400' : i === currentStep ? 'text-text-primary' : 'text-text-muted'
+            }`}>
+              {step.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-text-muted text-xs mt-8 animate-pulse">This usually takes a few seconds</p>
+    </div>
+  );
+}
+
 function LivePitchContent({ onEnd }: { onEnd: () => void }) {
   const { localParticipant } = useLocalParticipant();
+  const participants = useParticipants();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [setupComplete, setSetupComplete] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+
+  const remoteParticipants = participants.filter(p => !p.isLocal);
+
+  // Minimum 2s display so loader doesn't flash
+  useEffect(() => {
+    const timer = setTimeout(() => setMinTimeElapsed(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Mark setup complete when agent joins and min time passed
+  useEffect(() => {
+    if (remoteParticipants.length > 0 && minTimeElapsed) {
+      setSetupComplete(true);
+    }
+  }, [remoteParticipants.length, minTimeElapsed]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -99,6 +207,9 @@ function LivePitchContent({ onEnd }: { onEnd: () => void }) {
 
   return (
     <div className="flex flex-col h-full bg-surface relative">
+      {/* Setup Overlay */}
+      <SetupOverlay visible={!setupComplete} />
+
       {/* Status Header */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-gradient-to-b from-surface/80 to-transparent">
         <div className="flex items-center space-x-3">
