@@ -20,7 +20,8 @@ export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerPro
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>('');
   const [speakerDevices, setSpeakerDevices] = useState<MediaDeviceInfo[]>([]);
 
-  const isCustomPersona = persona?.isCustom || (persona?.id && persona.id.length > 10);
+  const isCommunityAgent = persona?.isCommunityAgent === true;
+  const isCustomPersona = !isCommunityAgent && (persona?.isCustom || (persona?.id && persona.id.length > 10));
 
   // Enumerate audio devices when drawer opens
   useEffect(() => {
@@ -77,9 +78,14 @@ export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerPro
       <div className="space-y-6">
         {/* Target */}
         <div className="bg-surface border border-border-primary rounded-xl p-4">
-          <p className="text-xs text-text-muted uppercase tracking-wider mb-2">Target</p>
+          <p className="text-xs text-text-muted uppercase tracking-wider mb-2">
+            {isCommunityAgent ? 'Community Agent' : 'Target'}
+          </p>
           <h3 className="font-bold text-text-primary">{persona?.name}</h3>
           <p className="text-sm text-blue-500">{persona?.role}</p>
+          {isCommunityAgent && persona?.creator_name && (
+            <p className="text-xs text-text-muted mt-1">by {persona.creator_name}</p>
+          )}
         </div>
 
         {/* Context */}

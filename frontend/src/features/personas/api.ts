@@ -29,3 +29,8 @@ export const getPersonaTemplates = async () => {
   const response = await apiClient.get('/personas/templates');
   return response.data;
 };
+
+export const getCommunityPersonas = async (params?: { search?: string; type?: string }) => {
+  const response = await apiClient.get('/personas/community', { params });
+  return response.data;
+};

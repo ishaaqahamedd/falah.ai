@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -22,6 +22,10 @@ class Persona(Base):
     scoring_criteria = Column(JSONB, nullable=True)   # [{key, label, desc}, ...]
     behavior_rules = Column(JSONB, nullable=True)     # ["rule1", "rule2", ...]
     opening_message = Column(Text, nullable=True)     # custom opening instruction
+
+    # Community sharing
+    is_public = Column(Boolean, default=False, nullable=False, server_default="false", index=True)
+    use_count = Column(Integer, default=0, nullable=False, server_default="0")
 
     cached_briefing = Column(Text, nullable=True)
     briefing_generated_at = Column(DateTime(timezone=True), nullable=True)
