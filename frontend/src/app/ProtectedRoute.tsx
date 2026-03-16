@@ -2,9 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useUserStore } from '../entities/user/store';
 import { fetchCurrentUser } from '../features/auth/api';
+import { WelcomeModal } from '../features/onboarding/WelcomeModal';
+import { OnboardingBubble } from '../features/onboarding/OnboardingBubble';
+import { useOnboardingStore } from '../features/onboarding/store';
 
 export const ProtectedRoute = () => {
-  const { isAuthenticated } = useUserStore();
+  const { isAuthenticated, user } = useUserStore();
+  const isOnboardingActive = useOnboardingStore((s) => s.isActive);
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
@@ -29,5 +33,11 @@ export const ProtectedRoute = () => {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      {user?.onboarding_status === 'pending' && <WelcomeModal />}
+      {isOnboardingActive && <OnboardingBubble />}
+    </>
+  );
 };

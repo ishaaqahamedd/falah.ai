@@ -15,4 +15,5 @@ export {
   XIcon,
   LockIcon,
   PlayIcon,
+  MicIcon,
 } from './Icons';
