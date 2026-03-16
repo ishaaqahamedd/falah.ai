@@ -66,7 +66,7 @@ async def pitch_websocket(websocket: WebSocket, persona_id: str):
     # 1. Wait for Critical Setup Handshake
     try:
         setup_data = await websocket.receive_json()
-        dynamic_transcript = setup_data.get("transcript", "")
+        dynamic_transcript = setup_data.get("transcript", "")[:settings.MAX_CRM_CHARS]
     except Exception as e:
         logger.error(f"Handshake failed: {e}")
         await websocket.close(code=1008)
@@ -94,7 +94,24 @@ async def pitch_websocket(websocket: WebSocket, persona_id: str):
 
     config = types.LiveConnectConfig(
         response_modalities=[types.Modality.AUDIO],
-        system_instruction=types.Content(parts=[types.Part.from_text(text=system_instruction)])
+        system_instruction=types.Content(parts=[types.Part.from_text(text=system_instruction)]),
+        # --- Context Management ---
+        context_window_compression=types.ContextWindowCompressionConfig(
+            trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
+            sliding_window=types.SlidingWindow(
+                target_tokens=settings.CONTEXT_TARGET_TOKENS,
+            ),
+        ),
+        # --- Latency: disable thinking for instant conversational responses ---
+        thinking_config=types.ThinkingConfig(
+            thinking_budget=settings.THINKING_BUDGET,
+        ),
+        # --- Natural conversation: adapt tone/emotion to user's voice ---
+        enable_affective_dialog=True,
+        # --- Smart silence: model stays quiet when input isn't directed at it ---
+        proactivity=types.ProactivityConfig(proactive_audio=True),
+        # --- Session resumption: transparent reconnection on connection drops ---
+        session_resumption=types.SessionResumptionConfig(handle=None),
     )
     
     logger.info(f"Connecting to Gemini Live for Persona: {persona_id}")
@@ -107,6 +124,7 @@ async def pitch_websocket(websocket: WebSocket, persona_id: str):
             await session.send_realtime_input(text="[System]: The user has joined. Please greet them now to start the pitch.")
             
             async def receive_from_client():
+                _last_video_sent = 0.0
                 try:
                     while True:
                         data = await websocket.receive_json()
@@ -122,9 +140,14 @@ async def pitch_websocket(websocket: WebSocket, persona_id: str):
                                 logger.error(f"Failed to send to Gemini: {e}")
                                 break
                         elif "video" in data:
+                            # Throttle video frames to reduce context growth
+                            import time as _time
+                            now = _time.monotonic()
+                            if now - _last_video_sent < settings.VIDEO_INTERVAL_DIRECT:
+                                continue
+                            _last_video_sent = now
                             # Forward Video Canvas frame to Gemini
                             base64_video = data["video"]
-                            # Base64 string from canvas usually has a 'data:image/jpeg;base64,' prefix which is stripped in frontend
                             raw_bytes = __import__('base64').b64decode(base64_video)
                             try:
                                 await session.send_realtime_input(

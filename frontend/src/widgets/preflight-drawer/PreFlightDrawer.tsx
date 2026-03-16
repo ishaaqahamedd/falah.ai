@@ -15,8 +15,33 @@ export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerPro
   const [context, setContext] = useState('');
   const [briefing, setBriefing] = useState<any>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedMicId, setSelectedMicId] = useState<string>('');
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>('');
+  const [speakerDevices, setSpeakerDevices] = useState<MediaDeviceInfo[]>([]);
 
   const isCustomPersona = persona?.isCustom || (persona?.id && persona.id.length > 10);
+
+  // Enumerate audio devices when drawer opens
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadDevices = async () => {
+      try {
+        // Request mic permission first so device labels are populated
+        await navigator.mediaDevices.getUserMedia({ audio: true }).then(s => s.getTracks().forEach(t => t.stop()));
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === 'audioinput' && d.deviceId);
+        const speakers = devices.filter(d => d.kind === 'audiooutput' && d.deviceId);
+        setAudioDevices(mics);
+        setSpeakerDevices(speakers);
+        if (mics.length > 0 && !selectedMicId) setSelectedMicId(mics[0].deviceId);
+        if (speakers.length > 0 && !selectedSpeakerId) setSelectedSpeakerId(speakers[0].deviceId);
+      } catch (e) {
+        console.warn('Could not enumerate audio devices:', e);
+      }
+    };
+    loadDevices();
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && isCustomPersona) {
@@ -43,7 +68,7 @@ export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerPro
     const roomName = `session-${persona.id}-${Date.now()}`;
     onClose();
     navigate(`/live/${roomName}`, {
-      state: { persona, context },
+      state: { persona, context, selectedMicId, selectedSpeakerId },
     });
   };
 
@@ -99,6 +124,43 @@ export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerPro
                 <p className="text-sm text-text-muted italic">Upload documents and generate a briefing.</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Audio Device Selection */}
+        {audioDevices.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-text-muted uppercase tracking-wider">Audio Devices</p>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-text-secondary">Microphone</label>
+              <select
+                value={selectedMicId}
+                onChange={(e) => setSelectedMicId(e.target.value)}
+                className="w-full bg-surface border border-border-primary rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+              >
+                {audioDevices.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {speakerDevices.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-text-secondary">Speaker</label>
+                <select
+                  value={selectedSpeakerId}
+                  onChange={(e) => setSelectedSpeakerId(e.target.value)}
+                  className="w-full bg-surface border border-border-primary rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                >
+                  {speakerDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label || `Speaker ${d.deviceId.slice(0, 8)}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 

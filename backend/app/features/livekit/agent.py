@@ -31,6 +31,23 @@ class PersonaAgent(Agent):
             llm=google.realtime.RealtimeModel(
                 model="gemini-2.5-flash-native-audio-preview-12-2025",
                 voice=voice_id,
+                # --- Context Management ---
+                context_window_compression=types.ContextWindowCompressionConfig(
+                    trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
+                    sliding_window=types.SlidingWindow(
+                        target_tokens=settings.CONTEXT_TARGET_TOKENS,
+                    ),
+                ),
+                # --- Latency: disable thinking for instant conversational responses ---
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=settings.THINKING_BUDGET,
+                ),
+                # --- Natural conversation: adapt tone/emotion to user's voice ---
+                enable_affective_dialog=True,
+                # --- Smart silence: model stays quiet when input isn't directed at it ---
+                proactivity=True,
+                # --- Session resumption: transparent reconnection on connection drops ---
+                session_resumption=types.SessionResumptionConfig(handle=None),
             ),
         )
         self._opening_instruction = (
@@ -50,6 +67,8 @@ class PersonaAgent(Agent):
 
 class TranscriptRecorder:
     """Listens to AgentSession events and records user/agent conversation turns."""
+
+    MAX_TURNS = 100
 
     def __init__(self, session: AgentSession):
         self.session = session
@@ -72,6 +91,9 @@ class TranscriptRecorder:
             "text": text,
             "timestamp": round(event.created_at - self._start_time, 2),
         })
+        # Prune old turns to prevent unbounded memory growth
+        if len(self.turns) > self.MAX_TURNS:
+            self.turns = self.turns[-self.MAX_TURNS:]
 
     def get_transcript(self) -> list[dict]:
         return self.turns
@@ -88,28 +110,44 @@ async def _save_session_to_db(
     transcript: list[dict],
     duration_seconds: int,
 ):
-    """Save a completed session and auto-trigger scoring + summary."""
-    from app.db.database import AsyncSessionLocal
+    """Save a completed session and auto-trigger scoring + summary.
+
+    Creates a fresh engine scoped to the agent worker's own event loop.
+    The shared engine from database.py is bound to FastAPI's loop and causes
+    'Future attached to a different loop' errors when reused here.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
     # Import models so SQLAlchemy metadata knows about FK-referenced tables.
     from app.features.auth.models import User  # noqa: F401
     from app.features.personas.models import Persona  # noqa: F401
     from app.features.sessions.service import SessionService
     from app.features.sessions.repository import SessionRepository
 
-    async with AsyncSessionLocal() as db:
-        try:
-            service = SessionService(repository=SessionRepository(db))
-            session_record = await service.create_completed_session(
-                user_id=user_id,
-                persona_id=persona_id,
-                persona_snapshot=persona_snapshot,
-                transcript=transcript,
-                duration_seconds=duration_seconds,
-            )
-            logger.info(f"[Agent] Session saved to DB: {session_record.id}")
-        except Exception as e:
-            logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
-            await db.rollback()
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            try:
+                service = SessionService(repository=SessionRepository(db))
+                session_record = await service.create_completed_session(
+                    user_id=user_id,
+                    persona_id=persona_id,
+                    persona_snapshot=persona_snapshot,
+                    transcript=transcript,
+                    duration_seconds=duration_seconds,
+                )
+                logger.info(f"[Agent] Session saved to DB: {session_record.id}")
+            except Exception as e:
+                logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
+                await db.rollback()
+    finally:
+        await agent_engine.dispose()
 
 
 # ---------------------------------------------------------------------------
@@ -151,18 +189,25 @@ def _build_dynamic_prompt(
     # Dynamic focus label — known types get specific labels, others get generic
     focus_label = FOCUS_LABELS.get(persona_type, "KEY FOCUS AREAS")
 
-    # Build the intelligence dossier from all available context
-    dossier_parts = []
+    # Build the intelligence dossier from all available context (truncated to limit token usage)
+    _MAX_BRIEFING = 2000
+    _MAX_CRM = 1000
+    dossier_parts: list[str] = []
     if briefing_context:
-        dossier_parts.append(f"--- AI-Generated Briefing (from uploaded docs) ---\n{briefing_context}")
+        truncated = briefing_context[:_MAX_BRIEFING]
+        suffix = "... [truncated]" if len(briefing_context) > _MAX_BRIEFING else ""
+        dossier_parts.append(f"--- AI-Generated Briefing (from uploaded docs) ---\n{truncated}{suffix}")
     if crm_context:
-        dossier_parts.append(f"--- Manual Notes from User ---\n{crm_context}")
+        truncated = crm_context[:_MAX_CRM]
+        suffix = "... [truncated]" if len(crm_context) > _MAX_CRM else ""
+        dossier_parts.append(f"--- Manual Notes from User ---\n{truncated}{suffix}")
 
     dossier = "\n\n".join(dossier_parts) if dossier_parts else "No prior context provided."
 
-    # Build session history section for cross-session adaptation
+    # Build session history section for cross-session adaptation (limit to most recent)
     history_section = ""
     if session_history:
+        session_history = session_history[-1:]
         history_entries = []
         for i, entry in enumerate(session_history, 1):
             date = entry.get("date", "Unknown date")
@@ -261,8 +306,8 @@ async def entrypoint(ctx: JobContext):
     # grab frames from the screenshare track and push them to Google Realtime Model.
     session = AgentSession(
         video_sampler=VoiceActivityVideoSampler(
-            speaking_fps=1.0, # Default — 1 frame/sec while user talks
-            silent_fps=0.5    # Slightly slower while silent
+            speaking_fps=settings.VIDEO_SPEAKING_FPS,
+            silent_fps=settings.VIDEO_SILENT_FPS,
         )
     )
 
@@ -273,6 +318,7 @@ async def entrypoint(ctx: JobContext):
     # 5. Register shutdown callback to save transcript after session ends
     async def on_shutdown(reason: str):
         logger.info(f"[Agent] Shutdown triggered: {reason}")
+        heartbeat_task.cancel()
         transcript = recorder.get_transcript()
         duration = int(time.time() - start_time)
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving...")
@@ -290,6 +336,17 @@ async def entrypoint(ctx: JobContext):
             logger.warning(f"[Agent] Skipping save: user_id={bool(user_id)}, turns={len(transcript)}")
 
     ctx.add_shutdown_callback(on_shutdown)
+
+    # 6. Periodic heartbeat logger — tracks session health every 60s
+    async def _heartbeat():
+        while True:
+            await asyncio.sleep(60)
+            elapsed = int(time.time() - start_time)
+            mins = elapsed // 60
+            turns = len(recorder.get_transcript())
+            logger.info(f"[Agent] Heartbeat: {mins}m elapsed, {turns} transcript turns captured")
+
+    heartbeat_task = asyncio.create_task(_heartbeat())
 
     logger.info("[Agent] Starting audio/vision session...")
 
