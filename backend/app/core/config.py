@@ -4,6 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     GOOGLE_API_KEY: str
+    GOOGLE_CLIENT_ID: Optional[str] = None
     LIVEKIT_URL: str
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
