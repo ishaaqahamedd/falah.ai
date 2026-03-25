@@ -20,6 +20,7 @@ class PersonaCreate(BaseModel):
     scoring_criteria: Optional[list[ScoringCriterion]] = None
     behavior_rules: Optional[list[str]] = None
     opening_message: Optional[str] = None
+    is_public: bool = False
 
 
 class PersonaUpdate(BaseModel):
@@ -32,6 +33,7 @@ class PersonaUpdate(BaseModel):
     scoring_criteria: Optional[list[ScoringCriterion]] = None
     behavior_rules: Optional[list[str]] = None
     opening_message: Optional[str] = None
+    is_public: Optional[bool] = None
 
 
 class PersonaResponse(BaseModel):
@@ -45,7 +47,14 @@ class PersonaResponse(BaseModel):
     scoring_criteria: Optional[list[dict]] = None
     behavior_rules: Optional[list[str]] = None
     opening_message: Optional[str] = None
+    is_public: bool
+    use_count: int
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CommunityPersonaResponse(PersonaResponse):
+    creator_name: str
+    user_id: UUID

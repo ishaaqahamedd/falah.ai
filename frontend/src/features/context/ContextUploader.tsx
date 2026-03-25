@@ -77,7 +77,7 @@ export function ContextUploader({ personaId, onUploadComplete }: ContextUploader
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-semibold text-slate-300 flex justify-between items-center">
+      <label className="text-sm font-semibold text-text-secondary flex justify-between items-center">
         <span>📎 Upload Context Documents</span>
         {uploadedFiles.length > 0 && (
           <span className="text-emerald-400 text-xs font-mono">{uploadedFiles.length} uploaded</span>
@@ -92,7 +92,7 @@ export function ContextUploader({ personaId, onUploadComplete }: ContextUploader
         className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
           isDragging 
             ? 'border-blue-500 bg-blue-500/10' 
-            : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            : 'border-border-primary bg-surface-secondary/50 hover:border-border-primary/80'
         } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
       >
         <input
@@ -112,11 +112,11 @@ export function ContextUploader({ personaId, onUploadComplete }: ContextUploader
           </div>
         ) : (
           <>
-            <svg className="w-8 h-8 text-slate-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p className="text-sm text-slate-400">Drag & drop emails, transcripts, or notes</p>
-            <p className="text-xs text-slate-500 mt-1">.txt, .md, .csv, .json, .eml</p>
+            <p className="text-sm text-text-secondary">Drag & drop emails, transcripts, or notes</p>
+            <p className="text-xs text-text-muted mt-1">.txt, .md, .csv, .json, .eml</p>
           </>
         )}
       </div>
@@ -128,10 +128,10 @@ export function ContextUploader({ personaId, onUploadComplete }: ContextUploader
       {uploadedFiles.length > 0 && (
         <div className="space-y-1.5 max-h-24 overflow-y-auto">
           {uploadedFiles.map((f, i) => (
-            <div key={f.id || i} className="flex items-center space-x-2 text-xs text-slate-400 bg-slate-800/50 rounded-lg px-3 py-1.5">
+            <div key={f.id || i} className="flex items-center space-x-2 text-xs text-text-secondary bg-surface-secondary/50 rounded-lg px-3 py-1.5">
               <span className="text-emerald-500">✓</span>
               <span className="truncate flex-1">{f.name}</span>
-              {f.size && <span className="text-slate-600">{(f.size / 1024).toFixed(1)}KB</span>}
+              {f.size && <span className="text-text-muted">{(f.size / 1024).toFixed(1)}KB</span>}
             </div>
           ))}
         </div>

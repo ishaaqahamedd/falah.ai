@@ -28,8 +28,8 @@ export function ScreenSharePanel({ localScreenShare, localParticipant }: ScreenS
       ) : (
         <div className="text-slate-500 flex flex-col items-center border-2 border-dashed border-slate-700 p-12 rounded-2xl w-full h-full justify-center">
           <svg className="w-16 h-16 mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-          <span className="text-xl font-bold text-white mb-2">Share Your Pitch Deck</span>
-          <span className="text-sm mt-2 opacity-80 text-center max-w-sm mb-6">The AI uses the Gemini 2.5 Flash Native Vision model. Share your screen so it can observe your slides.</span>
+          <span className="text-xl font-bold text-white mb-2">Share Your Screen</span>
+          <span className="text-sm mt-2 opacity-80 text-center max-w-sm mb-6">Your agent uses real-time vision. Share your screen and it will see exactly what you see.</span>
 
           <button
             onClick={() => localParticipant.setScreenShareEnabled(true)}

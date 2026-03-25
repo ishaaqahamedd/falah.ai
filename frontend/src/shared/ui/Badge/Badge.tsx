@@ -14,7 +14,7 @@ function ScoreBadge({ score, actor = 'user' }: ScoreBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold ${color.text} bg-slate-900 ring-2 ${ringClass}`}
+      className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold ${color.text} bg-surface ring-2 ${ringClass}`}
     >
       {score.toFixed(1)}
     </span>

@@ -11,6 +11,8 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: uuid.UUID
     is_active: bool
+    onboarding_status: str = "pending"
+    onboarding_step: str | None = None
 
     class Config:
         from_attributes = True
@@ -21,3 +23,6 @@ class Token(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: str | None = None
+
+class GoogleAuthRequest(BaseModel):
+    credential: str

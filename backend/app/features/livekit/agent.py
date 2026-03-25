@@ -4,6 +4,7 @@ import json
 import logging
 import time
 
+from livekit import rtc
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
 from livekit.agents.voice import Agent, AgentSession, VoiceActivityVideoSampler, room_io
 from livekit.plugins import google
@@ -31,6 +32,23 @@ class PersonaAgent(Agent):
             llm=google.realtime.RealtimeModel(
                 model="gemini-2.5-flash-native-audio-preview-12-2025",
                 voice=voice_id,
+                # --- Context Management ---
+                context_window_compression=types.ContextWindowCompressionConfig(
+                    trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
+                    sliding_window=types.SlidingWindow(
+                        target_tokens=settings.CONTEXT_TARGET_TOKENS,
+                    ),
+                ),
+                # --- Latency: disable thinking for instant conversational responses ---
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=settings.THINKING_BUDGET,
+                ),
+                # --- Natural conversation: adapt tone/emotion to user's voice ---
+                enable_affective_dialog=True,
+                # --- Smart silence: model stays quiet when input isn't directed at it ---
+                proactivity=True,
+                # --- Session resumption: transparent reconnection on connection drops ---
+                session_resumption=types.SessionResumptionConfig(handle=None),
             ),
         )
         self._opening_instruction = (
@@ -50,6 +68,8 @@ class PersonaAgent(Agent):
 
 class TranscriptRecorder:
     """Listens to AgentSession events and records user/agent conversation turns."""
+
+    MAX_TURNS = 100
 
     def __init__(self, session: AgentSession):
         self.session = session
@@ -72,6 +92,9 @@ class TranscriptRecorder:
             "text": text,
             "timestamp": round(event.created_at - self._start_time, 2),
         })
+        # Prune old turns to prevent unbounded memory growth
+        if len(self.turns) > self.MAX_TURNS:
+            self.turns = self.turns[-self.MAX_TURNS:]
 
     def get_transcript(self) -> list[dict]:
         return self.turns
@@ -88,28 +111,113 @@ async def _save_session_to_db(
     transcript: list[dict],
     duration_seconds: int,
 ):
-    """Save a completed session and auto-trigger scoring + summary."""
-    from app.db.database import AsyncSessionLocal
+    """Save a completed session and auto-trigger scoring + summary.
+
+    Creates a fresh engine scoped to the agent worker's own event loop.
+    The shared engine from database.py is bound to FastAPI's loop and causes
+    'Future attached to a different loop' errors when reused here.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
     # Import models so SQLAlchemy metadata knows about FK-referenced tables.
     from app.features.auth.models import User  # noqa: F401
     from app.features.personas.models import Persona  # noqa: F401
     from app.features.sessions.service import SessionService
     from app.features.sessions.repository import SessionRepository
 
-    async with AsyncSessionLocal() as db:
-        try:
-            service = SessionService(repository=SessionRepository(db))
-            session_record = await service.create_completed_session(
-                user_id=user_id,
-                persona_id=persona_id,
-                persona_snapshot=persona_snapshot,
-                transcript=transcript,
-                duration_seconds=duration_seconds,
-            )
-            logger.info(f"[Agent] Session saved to DB: {session_record.id}")
-        except Exception as e:
-            logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
-            await db.rollback()
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            try:
+                service = SessionService(repository=SessionRepository(db))
+                session_record = await service.create_completed_session(
+                    user_id=user_id,
+                    persona_id=persona_id,
+                    persona_snapshot=persona_snapshot,
+                    transcript=transcript,
+                    duration_seconds=duration_seconds,
+                )
+                logger.info(f"[Agent] Session saved to DB: {session_record.id}")
+            except Exception as e:
+                logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
+                await db.rollback()
+    finally:
+        await agent_engine.dispose()
+
+
+async def _update_session_in_db(
+    session_id: str,
+    transcript: list[dict],
+    duration_seconds: int,
+):
+    """Update a pre-created ACTIVE session to COMPLETED and trigger scoring.
+
+    Uses a fresh engine scoped to the agent worker's own event loop.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
+    from app.features.auth.models import User  # noqa: F401
+    from app.features.personas.models import Persona  # noqa: F401
+    from app.features.sessions.service import SessionService
+    from app.features.sessions.repository import SessionRepository
+
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            try:
+                service = SessionService(repository=SessionRepository(db))
+                session_record = await service.complete_existing_session(
+                    session_id=session_id,
+                    transcript=transcript,
+                    duration_seconds=duration_seconds,
+                )
+                logger.info(f"[Agent] Session updated in DB: {session_record.id}")
+            except Exception as e:
+                logger.error(f"[Agent] Failed to update session: {e}", exc_info=True)
+                await db.rollback()
+    finally:
+        await agent_engine.dispose()
+
+
+async def _save_onboarding_summary(user_id: str, summary: str):
+    """Save onboarding AI summary to the User record.
+
+    Uses a fresh engine scoped to the agent worker's own event loop.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
+    from app.features.auth.models import User
+
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with AgentSessionLocal() as db:
+            user = await db.get(User, user_id)
+            if user:
+                user.onboarding_summary = summary
+                await db.commit()
+                logger.info(f"[Agent] Onboarding summary persisted for user {user_id}")
+            else:
+                logger.warning(f"[Agent] User {user_id} not found — skipping onboarding summary")
+    finally:
+        await agent_engine.dispose()
 
 
 # ---------------------------------------------------------------------------
@@ -151,18 +259,25 @@ def _build_dynamic_prompt(
     # Dynamic focus label — known types get specific labels, others get generic
     focus_label = FOCUS_LABELS.get(persona_type, "KEY FOCUS AREAS")
 
-    # Build the intelligence dossier from all available context
-    dossier_parts = []
+    # Build the intelligence dossier from all available context (truncated to limit token usage)
+    _MAX_BRIEFING = 2000
+    _MAX_CRM = 1000
+    dossier_parts: list[str] = []
     if briefing_context:
-        dossier_parts.append(f"--- AI-Generated Briefing (from uploaded docs) ---\n{briefing_context}")
+        truncated = briefing_context[:_MAX_BRIEFING]
+        suffix = "... [truncated]" if len(briefing_context) > _MAX_BRIEFING else ""
+        dossier_parts.append(f"--- AI-Generated Briefing (from uploaded docs) ---\n{truncated}{suffix}")
     if crm_context:
-        dossier_parts.append(f"--- Manual Notes from User ---\n{crm_context}")
+        truncated = crm_context[:_MAX_CRM]
+        suffix = "... [truncated]" if len(crm_context) > _MAX_CRM else ""
+        dossier_parts.append(f"--- Manual Notes from User ---\n{truncated}{suffix}")
 
     dossier = "\n\n".join(dossier_parts) if dossier_parts else "No prior context provided."
 
-    # Build session history section for cross-session adaptation
+    # Build session history section for cross-session adaptation (limit to most recent)
     history_section = ""
     if session_history:
+        session_history = session_history[-1:]
         history_entries = []
         for i, entry in enumerate(session_history, 1):
             date = entry.get("date", "Unknown date")
@@ -233,9 +348,12 @@ async def entrypoint(ctx: JobContext):
     briefing_context = meta.get("briefing_context", "")
     session_history = meta.get("session_history", None)
     user_id = meta.get("user_id", "")
+    session_id = meta.get("session_id", "")
+    is_onboarding = meta.get("mode") == "onboarding"
 
     logger.info(f"[Agent] persona_id={persona_id}, has_config={persona_config is not None}, "
-                f"briefing_len={len(briefing_context)}, history_count={len(session_history) if session_history else 0}")
+                f"briefing_len={len(briefing_context)}, history_count={len(session_history) if session_history else 0}, "
+                f"session_id={session_id or 'none (will create new)'}")
 
     # 2. Build the system prompt
     opening_instruction = None
@@ -261,8 +379,8 @@ async def entrypoint(ctx: JobContext):
     # grab frames from the screenshare track and push them to Google Realtime Model.
     session = AgentSession(
         video_sampler=VoiceActivityVideoSampler(
-            speaking_fps=1.0, # Default — 1 frame/sec while user talks
-            silent_fps=0.5    # Slightly slower while silent
+            speaking_fps=settings.VIDEO_SPEAKING_FPS,
+            silent_fps=settings.VIDEO_SILENT_FPS,
         )
     )
 
@@ -273,11 +391,33 @@ async def entrypoint(ctx: JobContext):
     # 5. Register shutdown callback to save transcript after session ends
     async def on_shutdown(reason: str):
         logger.info(f"[Agent] Shutdown triggered: {reason}")
+        heartbeat_task.cancel()
         transcript = recorder.get_transcript()
         duration = int(time.time() - start_time)
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving...")
 
-        if user_id and len(transcript) >= 1:
+        if is_onboarding:
+            logger.info("[Agent] Onboarding session ended — generating summary")
+            if len(transcript) > 0 and user_id:
+                try:
+                    from app.features.sessions.service import generate_session_summary
+                    summary = await generate_session_summary(transcript, persona_config)
+                    await _save_onboarding_summary(user_id, summary)
+                    logger.info(f"[Agent] Onboarding summary saved: {summary[:100]}...")
+                except Exception as e:
+                    logger.error(f"[Agent] Failed to save onboarding summary: {e}", exc_info=True)
+            return
+        if len(transcript) < 1:
+            logger.warning(f"[Agent] Skipping save: no transcript turns captured")
+        elif session_id:
+            # Update the pre-created session (created by frontend on room entry)
+            await _update_session_in_db(
+                session_id=session_id,
+                transcript=transcript,
+                duration_seconds=duration,
+            )
+        elif user_id:
+            # Fallback: create new session (backwards compat for old clients)
             persona_snapshot = persona_config or {"persona_id": persona_id}
             await _save_session_to_db(
                 user_id=user_id,
@@ -287,9 +427,20 @@ async def entrypoint(ctx: JobContext):
                 duration_seconds=duration,
             )
         else:
-            logger.warning(f"[Agent] Skipping save: user_id={bool(user_id)}, turns={len(transcript)}")
+            logger.warning(f"[Agent] Skipping save: no session_id or user_id")
 
     ctx.add_shutdown_callback(on_shutdown)
+
+    # 6. Periodic heartbeat logger — tracks session health every 60s
+    async def _heartbeat():
+        while True:
+            await asyncio.sleep(60)
+            elapsed = int(time.time() - start_time)
+            mins = elapsed // 60
+            turns = len(recorder.get_transcript())
+            logger.info(f"[Agent] Heartbeat: {mins}m elapsed, {turns} transcript turns captured")
+
+    heartbeat_task = asyncio.create_task(_heartbeat())
 
     logger.info("[Agent] Starting audio/vision session...")
 
@@ -302,6 +453,74 @@ async def entrypoint(ctx: JobContext):
             video_input=True
         )
     )
+
+    # 7. Onboarding-specific: screen share detection, silence nudge, auto-end
+    if is_onboarding:
+        # --- Screen share start detection ---
+        @ctx.room.on("track_subscribed")
+        def _on_track_subscribed(
+            track: rtc.Track,
+            publication: rtc.RemoteTrackPublication,
+            participant: rtc.RemoteParticipant,
+        ):
+            if publication.source == rtc.TrackSource.SOURCE_SCREENSHARE:
+                logger.info("[Agent] Onboarding — screen share detected, triggering acknowledgment")
+                session.generate_reply(
+                    user_input="The user just started sharing their screen. Acknowledge it with energy and enthusiasm, thank them, and continue guiding them."
+                )
+
+        # --- Screen share stop detection ---
+        @ctx.room.on("track_unsubscribed")
+        def _on_track_unsubscribed(
+            track: rtc.Track,
+            publication: rtc.RemoteTrackPublication,
+            participant: rtc.RemoteParticipant,
+        ):
+            if publication.source == rtc.TrackSource.SOURCE_SCREENSHARE:
+                logger.info("[Agent] Onboarding — screen share stopped")
+                session.generate_reply(
+                    user_input="The user just stopped sharing their screen. In a friendly, encouraging tone, ask them to share their screen again so you can guide them better. Keep it to 1-2 sentences."
+                )
+
+        # --- Silence nudge: proactively follow up if user is quiet ---
+        last_user_activity = time.time()
+
+        @session.on("user_speech_committed")
+        def _on_user_speech(ev):
+            nonlocal last_user_activity
+            last_user_activity = time.time()
+
+        async def _silence_nudge():
+            """Nudge user every 15s of silence."""
+            nonlocal last_user_activity
+            while True:
+                await asyncio.sleep(15)
+                if time.time() - last_user_activity > 15:
+                    logger.info("[Agent] Onboarding — user silent for 15s, nudging")
+                    session.generate_reply(
+                        user_input="The user has been quiet for a while. Give them a friendly, short nudge. Ask if they need help or want you to explain something. Keep it to 1 sentence."
+                    )
+                    last_user_activity = time.time()
+
+        asyncio.create_task(_silence_nudge())
+
+        # --- Auto-end: caution at 3:45, goodbye at 4:00, shutdown at 4:15 ---
+        async def _onboarding_auto_end():
+            await asyncio.sleep(225)  # 3m45s — caution
+            logger.info("[Agent] Onboarding 3:45 mark — time running out caution")
+            session.generate_reply(
+                user_input="Gently let the user know that you've been having a great time but the setup session will wrap up soon. Be friendly and encouraging — don't make it feel abrupt. Keep it to 1-2 sentences."
+            )
+            await asyncio.sleep(15)  # 4m00s — goodbye
+            logger.info("[Agent] Onboarding 4:00 mark — saying goodbye")
+            session.generate_reply(
+                user_input="Say a warm goodbye to the user. Tell them it was awesome setting up together, they can always come back, and encourage them to keep exploring. Keep it to 2-3 sentences max."
+            )
+            await asyncio.sleep(15)  # 4m15s — shutdown
+            logger.info("[Agent] Onboarding 4:15 mark — shutting down")
+            ctx.shutdown()
+
+        asyncio.create_task(_onboarding_auto_end())
 
 
 if __name__ == "__main__":

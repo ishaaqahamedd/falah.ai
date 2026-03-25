@@ -26,6 +26,15 @@ export const register = async (email: string, fullName: string, password: string
   return response.data;
 };
 
+export const googleAuth = async (credential: string) => {
+  const response = await apiClient.post('/auth/google', { credential });
+  if (response.data.access_token) {
+    localStorage.setItem('access_token', response.data.access_token);
+    await fetchCurrentUser();
+  }
+  return response.data;
+};
+
 export const fetchCurrentUser = async () => {
   try {
     const response = await apiClient.get('/auth/me');

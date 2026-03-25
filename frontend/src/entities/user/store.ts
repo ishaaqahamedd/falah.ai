@@ -5,6 +5,8 @@ interface User {
   id: string;
   email: string;
   full_name: string;
+  onboarding_status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+  onboarding_step: string | null;
 }
 
 interface UserState {

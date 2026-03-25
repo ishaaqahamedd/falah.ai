@@ -5,7 +5,8 @@ envsubst '${BACKEND_URL} ${BACKEND_HOST}' < /etc/nginx/conf.d/default.conf.templ
 # Generate runtime config for browser-side variables
 cat <<EOF > /usr/share/nginx/html/config.js
 window.__CONFIG__ = {
-  VITE_LIVEKIT_URL: "${VITE_LIVEKIT_URL:-}"
+  VITE_LIVEKIT_URL: "${VITE_LIVEKIT_URL:-}",
+  VITE_GOOGLE_CLIENT_ID: "${VITE_GOOGLE_CLIENT_ID:-}"
 };
 EOF
 

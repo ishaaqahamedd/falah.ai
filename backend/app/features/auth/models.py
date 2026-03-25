@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -13,6 +13,14 @@ class User(Base, TimestampMixin):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(320), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     full_name = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
+    auth_provider = Column(String(20), nullable=False, server_default="local")
+    google_id = Column(String(255), nullable=True, unique=True, index=True)
+
+    # Onboarding
+    onboarding_status = Column(String(20), nullable=False, server_default="pending")
+    onboarding_step = Column(String(50), nullable=True)
+    onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
+    onboarding_summary = Column(Text, nullable=True)
