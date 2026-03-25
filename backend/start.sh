@@ -16,7 +16,7 @@ alembic upgrade head
 
 # Start LiveKit agent worker in background
 echo "Starting LiveKit agent worker..."
-python -m app.features.livekit.agent &
+python -m app.features.livekit.agent start &
 AGENT_PID=$!
 
 # Start FastAPI server in foreground
