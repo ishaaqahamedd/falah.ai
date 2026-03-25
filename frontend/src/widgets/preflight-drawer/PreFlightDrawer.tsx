@@ -66,7 +66,10 @@ export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerPro
   };
 
   const handleStart = () => {
-    const roomName = `session-${persona.id}-${Date.now()}`;
+    // Add environment prefix for agent worker filtering
+    // Read from VITE_ENVIRONMENT or fall back to MODE
+    const env = (import.meta.env.VITE_ENVIRONMENT || import.meta.env.MODE || 'local').split('-')[0];
+    const roomName = `${env}-session-${persona.id}-${Date.now()}`;
     onClose();
     navigate(`/live/${roomName}`, {
       state: { persona, context, selectedMicId, selectedSpeakerId },

@@ -129,7 +129,7 @@ async def _save_session_to_db(
     if db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
 
-    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0, connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0})
     AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
 
     try:
@@ -171,7 +171,7 @@ async def _update_session_in_db(
     if db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
 
-    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0, connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0})
     AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
 
     try:
@@ -204,7 +204,7 @@ async def _save_onboarding_summary(user_id: str, summary: str):
     if db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
 
-    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0)
+    agent_engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=1, max_overflow=0, connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0})
     AgentSessionLocal = async_sessionmaker(bind=agent_engine, class_=AsyncSession, expire_on_commit=False)
 
     try:
@@ -328,6 +328,14 @@ BEHAVIOR RULES:
 
 
 async def entrypoint(ctx: JobContext):
+    # Environment-aware room filtering — skip rooms not meant for this worker
+    env = os.environ.get("ENVIRONMENT", "local")
+    expected_prefix = f"{env}-session-"
+
+    if not ctx.room.name.startswith(expected_prefix):
+        logger.info(f"[Agent] Skipping room '{ctx.room.name}' — expected '{expected_prefix}' prefix (env={env})")
+        return
+
     logger.info(f"[Agent] Room '{ctx.room.name}' active. Connecting...")
 
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
