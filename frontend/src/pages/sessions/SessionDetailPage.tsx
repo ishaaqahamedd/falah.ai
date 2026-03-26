@@ -51,9 +51,11 @@ export function SessionDetailPage() {
   };
 
   const isActive = session?.status === 'active';
-  const isGenerating = session?.status === 'completed' && !session?.scorecard && !session?.ai_summary;
+  const [pollCount, setPollCount] = useState(0);
+  const pollTimedOut = pollCount >= 10; // Stop after ~30s
+  const isGenerating = session?.status === 'completed' && !session?.scorecard && !session?.ai_summary && !pollTimedOut;
 
-  // Auto-poll while session is active or generating report
+  // Auto-poll while session is active or generating report (stops after 30s)
   useEffect(() => {
     if (!isActive && !isGenerating) return;
     const interval = setInterval(async () => {
@@ -61,11 +63,15 @@ export function SessionDetailPage() {
         if (id) {
           const data = await getSession(id);
           setSession(data);
+          setPollCount((c) => c + 1);
         }
       } catch {}
     }, 3000);
     return () => clearInterval(interval);
   }, [id, isActive, isGenerating]);
+
+  // Reset poll count on session change
+  useEffect(() => { setPollCount(0); }, [id]);
 
   if (loading) {
     return (
