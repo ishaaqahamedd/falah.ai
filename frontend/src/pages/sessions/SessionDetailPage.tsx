@@ -51,27 +51,39 @@ export function SessionDetailPage() {
   };
 
   const isActive = session?.status === 'active';
-  const [pollCount, setPollCount] = useState(0);
-  const pollTimedOut = pollCount >= 10; // Stop after ~30s
-  const isGenerating = session?.status === 'completed' && !session?.scorecard && !session?.ai_summary && !pollTimedOut;
+  const needsScoring = session?.status === 'completed' && !session?.scorecard && !session?.ai_summary;
+  const [scoringTriggered, setScoringTriggered] = useState(false);
 
-  // Auto-poll while session is active or generating report (stops after 30s)
+  // Auto-poll while session is still active
   useEffect(() => {
-    if (!isActive && !isGenerating) return;
+    if (!isActive) return;
     const interval = setInterval(async () => {
       try {
         if (id) {
           const data = await getSession(id);
           setSession(data);
-          setPollCount((c) => c + 1);
         }
       } catch {}
     }, 3000);
     return () => clearInterval(interval);
-  }, [id, isActive, isGenerating]);
+  }, [id, isActive]);
 
-  // Reset poll count on session change
-  useEffect(() => { setPollCount(0); }, [id]);
+  // Auto-trigger scoring when session is completed but has no scorecard
+  useEffect(() => {
+    if (!needsScoring || scoringTriggered || !session?.transcript?.length) return;
+    setScoringTriggered(true);
+    (async () => {
+      try {
+        const updated = await triggerScoring(session.id);
+        setSession(updated);
+      } catch (e) {
+        console.error('Auto-scoring failed:', e);
+      }
+    })();
+  }, [needsScoring, scoringTriggered, session?.id]);
+
+  // Reset when session changes
+  useEffect(() => { setScoringTriggered(false); }, [id]);
 
   if (loading) {
     return (
@@ -140,7 +152,7 @@ export function SessionDetailPage() {
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">AI Session Summary</h3>
           <p className="text-text-secondary leading-relaxed">{session.ai_summary}</p>
         </div>
-      ) : isGenerating ? (
+      ) : scoringTriggered && needsScoring ? (
         <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 animate-pulse">
           <div className="flex items-center gap-3 mb-3">
             <span className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></span>
@@ -189,7 +201,7 @@ export function SessionDetailPage() {
             })}
           </div>
         </div>
-      ) : isGenerating ? (
+      ) : scoringTriggered && needsScoring ? (
         <div className="bg-surface-secondary border border-border-primary rounded-xl p-8 space-y-6">
           <div className="flex items-center gap-3">
             <span className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></span>
