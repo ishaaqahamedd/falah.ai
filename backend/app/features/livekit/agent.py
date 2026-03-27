@@ -332,8 +332,8 @@ async def entrypoint(ctx: JobContext):
     env = os.environ.get("ENVIRONMENT", "local")
     expected_prefix = f"{env}-session-"
 
-    if not ctx.room.name.startswith(expected_prefix):
-        logger.info(f"[Agent] Skipping room '{ctx.room.name}' — expected '{expected_prefix}' prefix (env={env})")
+    if not ctx.room.name.startswith(expected_prefix) and not ctx.room.name.startswith("onboarding-"):
+        logger.info(f"[Agent] Skipping room '{ctx.room.name}' — expected '{expected_prefix}' or 'onboarding-' prefix (env={env})")
         return
 
     logger.info(f"[Agent] Room '{ctx.room.name}' active. Connecting...")
