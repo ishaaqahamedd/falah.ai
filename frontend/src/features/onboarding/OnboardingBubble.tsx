@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   LiveKitRoom,
@@ -81,46 +81,6 @@ function SetupLoader({ visible }: { visible: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Screen Share Permission Modal
-// ---------------------------------------------------------------------------
-
-function ScreenShareModal({ onAllow, onDeny }: { onAllow: () => void; onDeny: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-surface-secondary border border-border-primary rounded-2xl shadow-2xl w-80 overflow-hidden">
-        <div className="px-5 py-4 border-b border-border-primary">
-          <div className="flex items-center gap-2 mb-1">
-            <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-            <span className="text-sm font-semibold text-text-primary">Share your screen</span>
-          </div>
-          <p className="text-xs text-text-secondary mt-2">
-            Your setup guide can see this page to help you navigate the platform in real time.
-          </p>
-        </div>
-        <div className="px-5 py-3 flex items-center justify-end gap-2">
-          <button
-            onClick={onDeny}
-            className="px-4 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary rounded-lg transition-colors cursor-pointer"
-          >
-            Not now
-          </button>
-          <button
-            onClick={onAllow}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
-          >
-            Allow
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // BubbleUI — collapsed bubble + expanded card
 // ---------------------------------------------------------------------------
 
@@ -141,11 +101,11 @@ function BubbleUI({
   const [muted, setMuted] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
   const [ending, setEnding] = useState(false);
-  const [showScreenShareModal, setShowScreenShareModal] = useState(false);
+  const [showScreenShareBanner, setShowScreenShareBanner] = useState(false);
+  const [screenShareBannerDismissed, setScreenShareBannerDismissed] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
   const [loaderDismissed, setLoaderDismissed] = useState(false);
-  const screenShareTriggered = useRef(false);
 
   // Minimum 2s display to prevent loader flash
   useEffect(() => {
@@ -179,28 +139,25 @@ function BubbleUI({
     setScreenSharing(hasScreenShare);
   }, [hasScreenShare]);
 
-  // Safety fallback: auto-end after 5.5 minutes if backend doesn't disconnect
+  // Safety fallback: auto-end after 8.5 minutes if backend doesn't disconnect
   useEffect(() => {
     if (!setupComplete) return;
     const timer = setTimeout(() => {
       handleEnd();
-    }, 285_000); // 4m45s safety fallback
+    }, 510_000); // 8m30s safety fallback (hard cap is 8m on backend)
     return () => clearTimeout(timer);
   }, [setupComplete]);
 
-  // Auto-trigger screen share 10 seconds after loader completes
+  // Show inline screen share banner 20s after loader completes (non-blocking)
   useEffect(() => {
-    if (showLoader || screenShareTriggered.current || screenSharing) return;
+    if (showLoader || screenShareBannerDismissed || screenSharing) return;
 
     const timer = setTimeout(() => {
-      if (!screenShareTriggered.current) {
-        screenShareTriggered.current = true;
-        setShowScreenShareModal(true);
-      }
-    }, 10000);
+      setShowScreenShareBanner(true);
+    }, 20000);
 
     return () => clearTimeout(timer);
-  }, [showLoader, screenSharing]);
+  }, [showLoader, screenSharing, screenShareBannerDismissed]);
 
   const toggleMute = () => {
     localParticipant.setMicrophoneEnabled(muted);
@@ -208,8 +165,8 @@ function BubbleUI({
   };
 
   const startScreenShare = async () => {
-    setShowScreenShareModal(false);
-    screenShareTriggered.current = true;
+    setShowScreenShareBanner(false);
+    setScreenShareBannerDismissed(true);
     try {
       await localParticipant.setScreenShareEnabled(true, {
         preferCurrentTab: true,
@@ -311,30 +268,47 @@ function BubbleUI({
         </div>
       </div>
 
-      {/* Screen share status */}
+      {/* Screen share status / inline banner */}
       <div className="px-4 py-2 border-b border-border-primary">
         {screenSharing ? (
           <div className="flex items-center gap-2 text-xs text-emerald-500">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Screen sharing active
           </div>
+        ) : showScreenShareBanner && !screenShareBannerDismissed ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span className="text-xs text-text-secondary">Share your screen so I can see what you see</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={startScreenShare}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+              >
+                Enable
+              </button>
+              <button
+                onClick={() => setScreenShareBannerDismissed(true)}
+                className="px-3 py-1 text-xs text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
         ) : (
           <button
-            onClick={() => { screenShareTriggered.current = true; setShowScreenShareModal(true); }}
+            onClick={startScreenShare}
             className="text-xs text-blue-500 hover:text-blue-400 cursor-pointer transition-colors"
           >
             Share your screen so I can guide you
           </button>
         )}
       </div>
-
-      {/* Screen share permission modal */}
-      {showScreenShareModal && (
-        <ScreenShareModal
-          onAllow={startScreenShare}
-          onDeny={() => setShowScreenShareModal(false)}
-        />
-      )}
 
       {/* Controls */}
       <div className="px-4 py-3 flex items-center justify-between">

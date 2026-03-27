@@ -1,22 +1,24 @@
-name: CI/CD
+name: Backend CI/CD
 
 on:
   push:
     branches: [main]
+    paths:
+      - "backend/**"
   pull_request:
     branches: [main]
+    paths:
+      - "backend/**"
 
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_REGION: us-central1
   BACKEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/live-cpr/backend
-  FRONTEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/live-cpr/frontend
 
 jobs:
-  lint-and-build:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      # Backend checks
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -26,21 +28,8 @@ jobs:
       - name: Check backend syntax
         run: python -m py_compile backend/main.py
 
-      # Frontend checks
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
-      - name: Lint frontend
-        run: cd frontend && npm run lint
-      - name: Build frontend
-        run: cd frontend && npm run build
-
   deploy:
-    needs: lint-and-build
+    needs: lint
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -61,14 +50,12 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      # Build and push backend
       - name: Build and push backend image
         run: |
           docker build -t $BACKEND_IMAGE:${{ github.sha }} -t $BACKEND_IMAGE:latest ./backend
           docker push $BACKEND_IMAGE:${{ github.sha }}
           docker push $BACKEND_IMAGE:latest
 
-      # Deploy backend to Cloud Run
       - name: Deploy backend to Cloud Run
         run: |
           gcloud run deploy live-cpr-backend \
@@ -81,27 +68,3 @@ jobs:
             --timeout 300 \
             --min-instances 1 \
             --set-env-vars "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }},LIVEKIT_URL=${{ secrets.LIVEKIT_URL }},LIVEKIT_API_KEY=${{ secrets.LIVEKIT_API_KEY }},LIVEKIT_API_SECRET=${{ secrets.LIVEKIT_API_SECRET }},DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},ENVIRONMENT=production"
-
-      # Build and push frontend (with production env vars baked in)
-      - name: Build and push frontend image
-        run: |
-          docker build \
-            --build-arg VITE_API_URL=/api/v1 \
-            --build-arg VITE_LIVEKIT_URL=${{ secrets.LIVEKIT_URL }} \
-            -t $FRONTEND_IMAGE:${{ github.sha }} \
-            -t $FRONTEND_IMAGE:latest \
-            ./frontend
-          docker push $FRONTEND_IMAGE:${{ github.sha }}
-          docker push $FRONTEND_IMAGE:latest
-
-      # Deploy frontend to Cloud Run
-      - name: Deploy frontend to Cloud Run
-        run: |
-          gcloud run deploy live-cpr-frontend \
-            --image $FRONTEND_IMAGE:${{ github.sha }} \
-            --region $GCP_REGION \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 8080 \
-            --memory 256Mi \
-            --set-env-vars "BACKEND_URL=${{ secrets.BACKEND_URL }}"
