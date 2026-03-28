@@ -55,7 +55,8 @@ async def trigger_scoring(
 ):
     """Trigger AI scoring + summary generation for a completed session."""
     session = await service.trigger_scoring(session_id, current_user.id)
-    logger.info(f"Session {session_id} scored: {session.scorecard.get('overall_score', '?')}/10")
+    score = (session.scorecard or {}).get("overall_score", "?")
+    logger.info(f"Session {session_id} scored: {score}/10")
     return session
 
 

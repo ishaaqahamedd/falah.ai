@@ -1,6 +1,9 @@
 from .config import InvestorPersona
 
-def build_investor_prompt(persona_config: InvestorPersona, crm_context: str = "") -> str:
+
+def build_investor_prompt(
+    persona_config: InvestorPersona, crm_context: str = ""
+) -> str:
     return f"""You are {persona_config.name}, {persona_config.role}.
 
 CORE PERSONALITY:

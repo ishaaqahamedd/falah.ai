@@ -7,6 +7,7 @@ from .models import User
 from .schemas import UserCreate
 from app.core.security import get_password_hash
 
+
 class AuthRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -14,13 +15,15 @@ class AuthRepository:
     async def get_user_by_email(self, email: str) -> Optional[User]:
         result = await self.session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
-    
+
     async def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
         result = await self.session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
-        
+
     async def get_user_by_google_id(self, google_id: str) -> Optional[User]:
-        result = await self.session.execute(select(User).where(User.google_id == google_id))
+        result = await self.session.execute(
+            select(User).where(User.google_id == google_id)
+        )
         return result.scalar_one_or_none()
 
     async def create_user(self, user_in: UserCreate) -> User:
@@ -34,7 +37,9 @@ class AuthRepository:
         await self.session.refresh(db_user)
         return db_user
 
-    async def create_google_user(self, email: str, full_name: str, google_id: str) -> User:
+    async def create_google_user(
+        self, email: str, full_name: str, google_id: str
+    ) -> User:
         db_user = User(
             email=email,
             full_name=full_name,

@@ -4,7 +4,14 @@
       "Bash(docker compose up --build)",
       "Bash(rm -f package-lock.json)",
       "Bash(npm install)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(python -m pytest tests/test_health.py tests/test_context.py -v --tb=short)",
+      "Bash(npm install:*)",
+      "Bash(ruff check:*)",
+      "Bash(python -m mypy .)",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(ruff format:*)"
     ]
   }
 }

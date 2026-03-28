@@ -4,7 +4,7 @@ import { getPersonas, createPersona, deletePersona, updatePersona } from '../../
 import { PersonaForm } from '../../features/personas/PersonaForm';
 import { PERSONA_OPTIONS } from '../../entities/personas/constants';
 import { PlusIcon, TrashIcon, GlobeIcon, LockIcon } from '../../shared/ui/Icons';
-import type { Persona } from '../../types';
+import type { Persona } from '@shared/types';
 
 export function AgentsPage() {
   const navigate = useNavigate();

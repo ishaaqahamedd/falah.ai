@@ -1,6 +1,5 @@
 """Tests for RBAC enforcement — ensures role checks work correctly."""
 
-import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession

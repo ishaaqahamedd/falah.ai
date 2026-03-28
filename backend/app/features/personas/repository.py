@@ -12,7 +12,9 @@ class PersonaRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def list_by_user(self, user_id: UUID, offset: int = 0, limit: int = 50) -> list[Persona]:
+    async def list_by_user(
+        self, user_id: UUID, offset: int = 0, limit: int = 50
+    ) -> list[Persona]:
         result = await self.session.execute(
             select(Persona)
             .where(Persona.user_id == user_id)
@@ -22,7 +24,9 @@ class PersonaRepository:
         )
         return list(result.scalars().all())
 
-    async def get_by_id_and_user(self, persona_id: UUID, user_id: UUID) -> Optional[Persona]:
+    async def get_by_id_and_user(
+        self, persona_id: UUID, user_id: UUID
+    ) -> Optional[Persona]:
         result = await self.session.execute(
             select(Persona).where(Persona.id == persona_id, Persona.user_id == user_id)
         )
@@ -56,7 +60,7 @@ class PersonaRepository:
         query = (
             select(Persona, User.full_name)
             .join(User, Persona.user_id == User.id)
-            .where(Persona.is_public == True)
+            .where(Persona.is_public.is_(True))
         )
         if search:
             pattern = f"%{search}%"
@@ -77,7 +81,7 @@ class PersonaRepository:
     async def get_public_by_id(self, persona_id: UUID) -> Optional[Persona]:
         """Fetch a single public persona by ID (no user ownership check)."""
         result = await self.session.execute(
-            select(Persona).where(Persona.id == persona_id, Persona.is_public == True)
+            select(Persona).where(Persona.id == persona_id, Persona.is_public.is_(True))
         )
         return result.scalar_one_or_none()
 

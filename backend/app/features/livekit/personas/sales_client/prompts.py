@@ -1,6 +1,9 @@
 from .config import SalesClientPersona
 
-def build_sales_client_prompt(persona_config: SalesClientPersona, crm_context: str = "") -> str:
+
+def build_sales_client_prompt(
+    persona_config: SalesClientPersona, crm_context: str = ""
+) -> str:
     return f"""You are {persona_config.name}, {persona_config.role}.
 
 PERSONALITY:

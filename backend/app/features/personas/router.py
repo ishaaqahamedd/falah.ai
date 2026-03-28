@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.features.auth.router import get_current_user
 from app.features.auth.models import User
-from .schemas import PersonaCreate, PersonaUpdate, PersonaResponse, CommunityPersonaResponse
+from .schemas import (
+    PersonaCreate,
+    PersonaUpdate,
+    PersonaResponse,
+    CommunityPersonaResponse,
+)
 from .repository import PersonaRepository
 from .service import PersonaService
 
@@ -32,6 +37,7 @@ async def list_personas(
 async def list_templates():
     """Return starter persona templates for quick-start creation."""
     from .templates import PERSONA_TEMPLATES
+
     return PERSONA_TEMPLATES
 
 

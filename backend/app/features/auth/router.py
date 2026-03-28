@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -9,7 +9,7 @@ from typing import Annotated, Optional
 
 from app.db.database import get_db
 from app.core.config import settings
-from .schemas import UserCreate, UserResponse, Token, TokenPayload, GoogleAuthRequest
+from .schemas import UserResponse, Token, TokenPayload, GoogleAuthRequest
 from .service import AuthService
 from .repository import AuthRepository
 from .models import User
@@ -22,8 +22,10 @@ COOKIE_NAME = "access_token"
 COOKIE_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60  # seconds
 IS_PROD = settings.ENVIRONMENT == "production"
 
+
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
     return AuthService(repository=AuthRepository(db))
+
 
 async def get_current_user(
     request: Request,
@@ -50,6 +52,7 @@ async def get_current_user(
     auth_service = AuthService(repository=AuthRepository(db))
     return await auth_service.get_user_by_id(uuid.UUID(token_data.sub))
 
+
 # Manual auth routes commented out — Google OAuth only for now
 # @router.post("/register", response_model=UserResponse)
 # async def register(
@@ -64,6 +67,7 @@ async def get_current_user(
 #     auth_service: AuthService = Depends(get_auth_service)
 # ):
 #     return await auth_service.authenticate_user(form_data.username, form_data.password)
+
 
 def _set_auth_cookie(response: Response, token: str) -> None:
     """Set the httpOnly auth cookie on the response."""
@@ -93,7 +97,9 @@ async def google_auth(
 @router.post("/logout")
 async def logout(response: Response):
     """Clear the auth cookie."""
-    response.delete_cookie(key=COOKIE_NAME, httponly=True, secure=IS_PROD, samesite="lax")
+    response.delete_cookie(
+        key=COOKIE_NAME, httponly=True, secure=IS_PROD, samesite="lax"
+    )
     return {"message": "Logged out"}
 
 

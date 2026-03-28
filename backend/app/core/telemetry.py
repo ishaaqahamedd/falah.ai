@@ -22,21 +22,26 @@ def setup_telemetry(app: object) -> None:
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
         from opentelemetry.sdk.resources import Resource
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter,
+        )
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
         resource = Resource.create({"service.name": "falah-backend"})
         provider = TracerProvider(resource=resource)
-        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
+        provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
+        )
         trace.set_tracer_provider(provider)
 
         # Auto-instrument FastAPI
-        FastAPIInstrumentor.instrument_app(app)  # type: ignore[arg-type]
+        FastAPIInstrumentor.instrument_app(app)
 
         # Auto-instrument SQLAlchemy engine
         from app.db.database import engine
+
         SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
 
         # Auto-instrument outbound HTTP calls (httpx)
@@ -44,4 +49,6 @@ def setup_telemetry(app: object) -> None:
 
         logger.info("OpenTelemetry instrumentation activated → %s", endpoint)
     except Exception:
-        logger.exception("Failed to initialise OpenTelemetry — continuing without tracing")
+        logger.exception(
+            "Failed to initialise OpenTelemetry — continuing without tracing"
+        )

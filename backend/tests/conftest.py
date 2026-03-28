@@ -8,9 +8,28 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.db.database import Base, get_db
-from app.core.security import create_access_token
-from app.features.auth.models import User
+# ---------------------------------------------------------------------------
+# SQLite type compatibility — map PostgreSQL-only types for test dialect
+# Must be registered BEFORE any model imports trigger metadata collection.
+# ---------------------------------------------------------------------------
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
+
+
+@compiles(JSONB, "sqlite")
+def _jsonb_sqlite(type_, compiler, **kw):
+    return "JSON"
+
+
+@compiles(Vector, "sqlite")
+def _vector_sqlite(type_, compiler, **kw):
+    return "TEXT"
+
+
+from app.db.database import Base, get_db  # noqa: E402
+from app.core.security import create_access_token  # noqa: E402
+from app.features.auth.models import User  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # In-memory SQLite engine (no external DB required)
@@ -18,7 +37,9 @@ from app.features.auth.models import User
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 engine = create_async_engine(TEST_DB_URL, echo=False)
-TestingSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+TestingSessionLocal = async_sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 # SQLite doesn't enforce FK constraints by default — enable them
@@ -98,7 +119,9 @@ def admin_token(admin_user: User) -> str:
 # Async HTTP test client — overrides DB dependency
 # ---------------------------------------------------------------------------
 @pytest.fixture
-async def client(db_session: AsyncSession, auth_token: str) -> AsyncGenerator[AsyncClient, None]:
+async def client(
+    db_session: AsyncSession, auth_token: str
+) -> AsyncGenerator[AsyncClient, None]:
     from main import app
 
     async def _override_get_db():

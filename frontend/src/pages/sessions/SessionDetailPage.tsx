@@ -4,7 +4,7 @@ import { getSession, getSessions, triggerScoring } from '../../features/sessions
 import { SCORE_DIMENSIONS } from '../../entities/sessions/constants';
 import { getScoreColor, formatTimestamp } from '../../shared/lib/formatters';
 import { ChevronLeftIcon } from '../../shared/ui/Icons';
-import type { Session, ScoringCriterion, TranscriptTurn } from '../../types';
+import type { Session, ScoringCriterion, TranscriptTurn } from '@shared/types';
 import { SESSION_POLL_INTERVAL_MS } from '../../shared/lib/constants';
 
 export function SessionDetailPage() {

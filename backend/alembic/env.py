@@ -13,9 +13,6 @@ from alembic import context
 
 from app.core.config import settings
 from app.db.database import Base
-from app.features.auth.models import User
-from app.features.personas.models import Persona
-from app.features.context.models import ContextDocument
 from app.features.sessions.models import PitchSession  # noqa: F401
 
 # this is the Alembic Config object, which provides
@@ -84,10 +81,7 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={
-            "statement_cache_size": 0,
-            "prepared_statement_cache_size": 0
-        }
+        connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0},
     )
 
     async with connectable.connect() as connection:

@@ -1,6 +1,6 @@
 import { Drawer } from '../../shared/ui/Drawer';
 import { GlobeIcon, PlayIcon } from '../../shared/ui/Icons';
-import type { ScoringCriterion } from '../../types';
+import type { ScoringCriterion } from '@shared/types';
 
 interface AgentPreviewData {
   name: string;

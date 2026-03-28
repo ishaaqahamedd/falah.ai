@@ -1,7 +1,7 @@
 import React from 'react';
 import { getScoreColor } from '../../shared/lib/formatters';
 import { SCORE_DIMENSIONS } from '../../entities/sessions/constants';
-import type { Scorecard as ScorecardType, ScorecardDimension } from '../../types';
+import type { Scorecard as ScorecardType, ScorecardDimension } from '@shared/types';
 
 interface ScorecardProps {
   scorecard: ScorecardType | null;

@@ -41,7 +41,11 @@ async def test_update_session(client: AsyncClient, test_user: User):
     session_id = create_resp.json()["id"]
 
     transcript = [
-        {"role": "agent", "text": "Hello, tell me about your startup.", "timestamp": 0.0},
+        {
+            "role": "agent",
+            "text": "Hello, tell me about your startup.",
+            "timestamp": 0.0,
+        },
         {"role": "user", "text": "We're building an AI platform.", "timestamp": 5.0},
     ]
     resp = await client.patch(
@@ -53,6 +57,15 @@ async def test_update_session(client: AsyncClient, test_user: User):
     assert data["status"] == "completed"
     assert data["duration_seconds"] == 120
     assert len(data["transcript"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_nonexistent_session(client: AsyncClient, test_user: User):
+    import uuid
+
+    fake_id = str(uuid.uuid4())
+    resp = await client.get(f"/api/v1/sessions/{fake_id}")
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio

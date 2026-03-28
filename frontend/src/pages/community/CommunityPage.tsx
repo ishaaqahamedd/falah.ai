@@ -5,7 +5,7 @@ import { SearchInput } from '../../shared/ui/SearchInput';
 import { PreFlightDrawer } from '../../widgets/preflight-drawer/PreFlightDrawer';
 import { AgentPreviewDrawer } from '../../widgets/agent-preview-drawer/AgentPreviewDrawer';
 import { useUserStore } from '../../entities/user/store';
-import type { PersonaTemplate, CommunityPersona } from '../../types';
+import type { PersonaTemplate, CommunityPersona } from '@shared/types';
 
 type PreFlightPersona = CommunityPersona & { isCommunityAgent?: boolean };
 

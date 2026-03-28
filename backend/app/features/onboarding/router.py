@@ -7,12 +7,13 @@ from app.features.auth.models import User
 from app.db.database import get_db
 from .schemas import OnboardingProgressUpdate
 from .service import OnboardingService
+from .repository import OnboardingRepository
 
 router = APIRouter(prefix="/api/v1/onboarding", tags=["onboarding"])
 
 
 def get_onboarding_service(db: AsyncSession = Depends(get_db)) -> OnboardingService:
-    return OnboardingService(db)
+    return OnboardingService(repository=OnboardingRepository(db))
 
 
 @router.patch("/progress")

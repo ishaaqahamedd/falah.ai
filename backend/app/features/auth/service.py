@@ -11,6 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class AuthService:
     def __init__(self, repository: AuthRepository):
         self.repository = repository
@@ -20,13 +21,17 @@ class AuthService:
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered."
+                detail="Email already registered.",
             )
         return await self.repository.create_user(user_in)
 
     async def authenticate_user(self, email: str, password: str) -> Token:
         user = await self.repository.get_user_by_email(email)
-        if not user or not user.password_hash or not verify_password(password, user.password_hash):
+        if (
+            not user
+            or not user.password_hash
+            or not verify_password(password, user.password_hash)
+        ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -34,8 +39,7 @@ class AuthService:
             )
         if not user.is_active:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Inactive user."
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user."
             )
 
         access_token = create_access_token(subject=user.id)
@@ -81,7 +85,9 @@ class AuthService:
                 user = await self.repository.link_google_account(user, google_id)
             else:
                 # 3. Create new Google user
-                user = await self.repository.create_google_user(email, full_name, google_id)
+                user = await self.repository.create_google_user(
+                    email, full_name, google_id
+                )
 
         if not user.is_active:
             raise HTTPException(

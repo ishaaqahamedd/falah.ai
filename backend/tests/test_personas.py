@@ -29,7 +29,9 @@ async def test_create_persona(client: AsyncClient, test_user: User):
 async def test_list_personas(client: AsyncClient, test_user: User):
     # Create two personas
     await client.post("/api/v1/personas/", json=PERSONA_PAYLOAD)
-    await client.post("/api/v1/personas/", json={**PERSONA_PAYLOAD, "name": "Second Agent"})
+    await client.post(
+        "/api/v1/personas/", json={**PERSONA_PAYLOAD, "name": "Second Agent"}
+    )
 
     resp = await client.get("/api/v1/personas/")
     assert resp.status_code == 200
@@ -52,7 +54,9 @@ async def test_update_persona(client: AsyncClient, test_user: User):
     create_resp = await client.post("/api/v1/personas/", json=PERSONA_PAYLOAD)
     persona_id = create_resp.json()["id"]
 
-    resp = await client.put(f"/api/v1/personas/{persona_id}", json={"name": "Updated Name"})
+    resp = await client.put(
+        f"/api/v1/personas/{persona_id}", json={"name": "Updated Name"}
+    )
     assert resp.status_code == 200
     assert resp.json()["name"] == "Updated Name"
 
@@ -76,6 +80,15 @@ async def test_get_templates(client: AsyncClient):
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
+
+
+@pytest.mark.asyncio
+async def test_get_nonexistent_persona(client: AsyncClient, test_user: User):
+    import uuid
+
+    fake_id = str(uuid.uuid4())
+    resp = await client.get(f"/api/v1/personas/{fake_id}")
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio

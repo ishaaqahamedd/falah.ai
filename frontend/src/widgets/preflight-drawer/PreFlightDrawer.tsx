@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Drawer } from '../../shared/ui/Drawer';
 import { ContextUploader } from '../../features/context/ContextUploader';
 import { apiClient } from '../../shared/api/client';
-import type { Briefing } from '../../types';
+import type { Briefing } from '@shared/types';
 
 interface PreFlightPersona {
   id: string;

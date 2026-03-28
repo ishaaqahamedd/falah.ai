@@ -19,10 +19,22 @@ logger = logging.getLogger("sessions-service")
 
 DEFAULT_SCORING_CRITERIA = [
     {"key": "clarity", "label": "Clarity", "desc": "Clear and structured pitch"},
-    {"key": "objection_handling", "label": "Objection Handling", "desc": "Addressed concerns effectively"},
+    {
+        "key": "objection_handling",
+        "label": "Objection Handling",
+        "desc": "Addressed concerns effectively",
+    },
     {"key": "engagement", "label": "Engagement", "desc": "Natural conversation flow"},
-    {"key": "context_awareness", "label": "Context Awareness", "desc": "Referenced background info"},
-    {"key": "closing_strength", "label": "Closing Strength", "desc": "Drove toward next steps"},
+    {
+        "key": "context_awareness",
+        "label": "Context Awareness",
+        "desc": "Referenced background info",
+    },
+    {
+        "key": "closing_strength",
+        "label": "Closing Strength",
+        "desc": "Drove toward next steps",
+    },
 ]
 
 
@@ -53,12 +65,13 @@ async def score_session(transcript: list[dict], persona_snapshot: dict | None) -
     )
 
     if not transcript_text.strip():
-        return _empty_scorecard("Session had no meaningful dialogue to evaluate.", criteria)
+        return _empty_scorecard(
+            "Session had no meaningful dialogue to evaluate.", criteria
+        )
 
     # Build dimension list dynamically
     dim_lines = "\n".join(
-        f"{i+1}. **{c['label']}** — {c['desc']}"
-        for i, c in enumerate(criteria)
+        f"{i + 1}. **{c['label']}** — {c['desc']}" for i, c in enumerate(criteria)
     )
 
     # Build expected JSON shape dynamically
@@ -89,7 +102,7 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
             model=settings.GEMINI_FLASH_LITE_MODEL,
             contents=prompt,
         )
-        text = response.text.strip()
+        text = (response.text or "").strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1]
             text = text.rsplit("```", 1)[0]
@@ -99,7 +112,9 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
         return _empty_scorecard(f"Scoring failed: {e}", criteria)
 
 
-async def generate_session_summary(transcript: list[dict], persona_snapshot: dict | None) -> str:
+async def generate_session_summary(
+    transcript: list[dict], persona_snapshot: dict | None
+) -> str:
     """Generate a 2-3 sentence summary of what happened in the session."""
     client = get_genai_client()
 
@@ -133,7 +148,7 @@ Summary:"""
             model=settings.GEMINI_FLASH_LITE_MODEL,
             contents=prompt,
         )
-        return response.text.strip()
+        return (response.text or "").strip() or "Could not generate session summary."
     except Exception as e:
         logger.error(f"Summary generation failed: {e}", exc_info=True)
         return "Could not generate session summary."
@@ -190,14 +205,22 @@ class SessionService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No transcript to score",
             )
-        scorecard = await score_session(session_record.transcript, session_record.persona_snapshot)
-        summary = await generate_session_summary(session_record.transcript, session_record.persona_snapshot)
+        scorecard = await score_session(
+            session_record.transcript, session_record.persona_snapshot
+        )
+        summary = await generate_session_summary(
+            session_record.transcript, session_record.persona_snapshot
+        )
         session_record.scorecard = scorecard
         session_record.ai_summary = summary
         return await self.repository.update(session_record)
 
     async def list_sessions(
-        self, user_id: UUID, persona_id: Optional[UUID] = None, offset: int = 0, limit: int = 20
+        self,
+        user_id: UUID,
+        persona_id: Optional[UUID] = None,
+        offset: int = 0,
+        limit: int = 20,
     ) -> list[PitchSession]:
         return await self.repository.list_by_user(user_id, persona_id, offset, limit)
 

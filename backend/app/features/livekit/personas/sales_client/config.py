@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class SalesClientPersona(BaseModel):
     id: str
     name: str

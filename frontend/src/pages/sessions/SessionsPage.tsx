@@ -4,7 +4,7 @@ import { getSessions } from '../../features/sessions/api';
 import { getPersonas } from '../../features/personas/api';
 import { SearchInput } from '../../shared/ui/SearchInput';
 import { getScoreColor } from '../../shared/lib/formatters';
-import type { Session, Persona } from '../../types';
+import type { Session, Persona } from '@shared/types';
 import { SESSIONS_PAGE_SIZE, SESSIONS_LIST_POLL_INTERVAL_MS } from '../../shared/lib/constants';
 
 type SortKey = 'date' | 'score' | 'duration';

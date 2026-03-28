@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getPersonaTemplates } from './api';
 import { VOICES } from '../../entities/personas/constants';
-import type { PersonaTemplate } from '../../types';
+import type { PersonaTemplate } from '@shared/types';
 
 interface ScoringCriterion {
   key: string;
