@@ -28,19 +28,20 @@ class Settings(BaseSettings):
     VIDEO_SILENT_FPS: float = 0.2  # Frames/sec while silent
     VIDEO_INTERVAL_DIRECT: float = 2.0  # Min seconds between frames (direct WS path)
 
-    # Latency optimization
-    THINKING_BUDGET: int = (
-        128  # 128=minimal reasoning (~100-300ms), 0=disabled, -1=auto (2-5s delay)
-    )
+    # Latency optimization — fallback only (DB value always takes precedence)
+    THINKING_LEVEL: str = "minimal"  # minimal | low | medium | high
 
     # System instruction limits
     MAX_BRIEFING_CHARS: int = 2000  # ~500 tokens
     MAX_CRM_CHARS: int = 1000  # ~250 tokens
 
-    # Model names — centralised so they're easy to swap
-    GEMINI_LIVE_MODEL: str = "gemini-2.5-flash-native-audio-preview-12-2025"
+    # Model names — fallback only (DB value always takes precedence)
+    GEMINI_LIVE_MODEL: str = "gemini-3.1-flash-live-preview"
     GEMINI_FLASH_LITE_MODEL: str = "gemini-3.1-flash-lite-preview"
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-2-preview"
+
+    # Superadmin — only this email is auto-promoted to superadmin on login
+    SUPERADMIN_EMAIL: str = ""
 
     model_config = SettingsConfigDict(env_file=".env")
 

@@ -57,3 +57,9 @@ class AuthRepository:
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+    async def update_role(self, user: User, role: str) -> User:
+        user.role = role
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

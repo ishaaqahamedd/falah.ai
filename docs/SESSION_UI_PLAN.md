@@ -15,7 +15,7 @@ A modern, cinematic session interface with:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🔴 Agent Live   00:00:00                                    │  ← top bar (minimal, transparent)
+│  🔴 Agent Live   00:00:00                                  │  ← top bar (minimal, transparent)
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │                                                             │
@@ -29,7 +29,7 @@ A modern, cinematic session interface with:
 │                                                             │
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
-│         [🎤 Mic]    [🖥 Share Screen]    [✕ End]            │  ← bottom bar
+│         [🎤 Mic]    [🖥 Share Screen]    [✕ End]           │  ← bottom bar
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -39,18 +39,18 @@ A modern, cinematic session interface with:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  🔴 Agent Live   00:00:00                                    │
+│  🔴 Agent Live   00:00:00                                  │
 ├──────────────────────────────────────┬──────────────────────┤
 │                                      │                      │
-│                                      │   ┌───────────┐     │
-│        SCREEN SHARE CONTENT          │   │           │     │
-│          (user's screen)             │   │ AI AVATAR │     │
-│                                      │   │           │     │
-│                                      │   └───────────┘     │
-│                                      │  AI is Speaking...  │
+│                                      │   ┌───────────┐      │
+│        SCREEN SHARE CONTENT          │   │           │      │
+│          (user's screen)             │   │ AI AVATAR │      │
+│                                      │   │           │      │
+│                                      │   └───────────┘      │
+│                                      │  AI is Speaking...   │
 │                                      │                      │
 ├──────────────────────────────────────┴──────────────────────┤
-│         [🎤 Mic]    [🖥 Stop Share]    [✕ End]              │
+│         [🎤 Mic]    [🖥 Stop Share]    [✕ End]             │
 └─────────────────────────────────────────────────────────────┘
 ```
 

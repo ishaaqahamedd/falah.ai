@@ -15,6 +15,10 @@ from app.core.config import settings
 from app.features.livekit.personas import get_persona_prompt
 from app.features.livekit.handlers.onboarding_handler import setup_onboarding
 from app.features.livekit.handlers.session_handler import setup_session
+from app.db.database import AsyncSessionLocal
+from app.features.superadmin.models import AIModelConfig
+from app.features.superadmin.model_registry import MODEL_REGISTRY, DEFAULT_MODEL_ID
+from sqlalchemy.future import select
 
 logger = logging.getLogger("persona-agent")
 
@@ -24,30 +28,79 @@ os.environ.setdefault("LIVEKIT_API_KEY", settings.LIVEKIT_API_KEY)
 os.environ.setdefault("LIVEKIT_API_SECRET", settings.LIVEKIT_API_SECRET)
 
 
+async def get_active_live_config() -> tuple[str, dict]:
+    """
+    Fetch the active model_id + settings from DB.
+    Falls back to settings defaults if DB is unavailable.
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(AIModelConfig).where(AIModelConfig.config_key == "live_agent_model")
+            )
+            config = result.scalar_one_or_none()
+            if config:
+                return config.model_id, config.settings or {}
+    except Exception:
+        pass
+    return settings.GEMINI_LIVE_MODEL, {"thinking_level": settings.THINKING_LEVEL}
+
+
+def build_realtime_model(model_id: str, voice_id: str, model_settings: dict) -> google.realtime.RealtimeModel:
+    """
+    Build a RealtimeModel using the model registry spec.
+    Only passes flags the model actually supports — no unsupported kwargs sent to the API.
+    """
+    spec = MODEL_REGISTRY.get(model_id) or MODEL_REGISTRY[DEFAULT_MODEL_ID]
+    thinking_spec = spec.get("thinking", {})
+
+    if thinking_spec.get("type") == "level":
+        level = model_settings.get("thinking_level", thinking_spec.get("default", "minimal"))
+        thinking_cfg = types.ThinkingConfig(thinking_level=level)
+    elif thinking_spec.get("type") == "budget":
+        budget = model_settings.get("thinking_budget", thinking_spec.get("default", 128))
+        thinking_cfg = types.ThinkingConfig(thinking_budget=budget)
+    else:
+        thinking_cfg = None
+
+    kwargs: dict = dict(
+        model=model_id,
+        voice=voice_id,
+        context_window_compression=types.ContextWindowCompressionConfig(
+            trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
+            sliding_window=types.SlidingWindow(
+                target_tokens=settings.CONTEXT_TARGET_TOKENS,
+            ),
+        ),
+        session_resumption=types.SessionResumptionConfig(handle=None),
+    )
+
+    if thinking_cfg is not None:
+        kwargs["thinking_config"] = thinking_cfg
+
+    # Only pass flags the model actually supports
+    if spec.get("affective_dialog"):
+        kwargs["enable_affective_dialog"] = True
+    if spec.get("proactivity"):
+        kwargs["proactivity"] = True
+
+    return google.realtime.RealtimeModel(**kwargs)
+
+
 class PersonaAgent(Agent):
     """A Gemini-powered agent configured dynamically via persona config."""
 
     def __init__(
-        self, system_prompt: str, voice_id: str, opening_instruction: str | None = None
+        self,
+        system_prompt: str,
+        voice_id: str,
+        model_id: str,
+        model_settings: dict,
+        opening_instruction: str | None = None,
     ):
         super().__init__(
             instructions=system_prompt,
-            llm=google.realtime.RealtimeModel(
-                model=settings.GEMINI_LIVE_MODEL,
-                voice=voice_id,
-                context_window_compression=types.ContextWindowCompressionConfig(
-                    trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
-                    sliding_window=types.SlidingWindow(
-                        target_tokens=settings.CONTEXT_TARGET_TOKENS,
-                    ),
-                ),
-                thinking_config=types.ThinkingConfig(
-                    thinking_budget=settings.THINKING_BUDGET,
-                ),
-                enable_affective_dialog=True,
-                proactivity=True,
-                session_resumption=types.SessionResumptionConfig(handle=None),
-            ),
+            llm=build_realtime_model(model_id, voice_id, model_settings),
         )
         self._opening_instruction = (
             opening_instruction
@@ -313,9 +366,13 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"[Agent] Using HARDCODED persona: {persona_id} (voice={voice_id})")
 
     # 3. Initialize agent + session
+    active_model, model_settings = await get_active_live_config()
+    logger.info(f"[Agent] Using Gemini model: {active_model} | settings: {model_settings}")
     agent = PersonaAgent(
         system_prompt=system_prompt,
         voice_id=voice_id,
+        model_id=active_model,
+        model_settings=model_settings,
         opening_instruction=opening_instruction,
     )
 

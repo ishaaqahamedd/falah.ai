@@ -11,6 +11,10 @@ import { SessionDetailPage } from '../pages/sessions/SessionDetailPage';
 import { CommunityPage } from '../pages/community/CommunityPage';
 import { ConnectorsPage } from '../pages/connectors/ConnectorsPage';
 import { LivePitchPage } from '../pages/live-pitch/LivePitchPage';
+import { SuperadminGuard } from '../pages/superadmin/SuperadminGuard';
+import { SuperadminLayout } from '../pages/superadmin/SuperadminLayout';
+import { UsersPage } from '../pages/superadmin/users/UsersPage';
+import { AIPage } from '../pages/superadmin/ai/AIPage';
 
 export const router = createBrowserRouter([
   // Public auth routes
@@ -40,6 +44,21 @@ export const router = createBrowserRouter([
         element: <LiveLayout />,
         children: [
           { path: 'live/:roomName', element: <LivePitchPage /> },
+        ],
+      },
+      // Superadmin — owner only, hidden from main nav
+      {
+        path: 'superadmin',
+        element: <SuperadminGuard />,
+        children: [
+          {
+            element: <SuperadminLayout />,
+            children: [
+              { index: true, element: <Navigate to="/superadmin/users" replace /> },
+              { path: 'users', element: <UsersPage /> },
+              { path: 'ai',    element: <AIPage /> },
+            ],
+          },
         ],
       },
     ],

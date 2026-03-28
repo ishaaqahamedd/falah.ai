@@ -89,6 +89,14 @@ class AuthService:
                     email, full_name, google_id
                 )
 
+        # Auto-promote to superadmin if email matches env variable
+        if (
+            settings.SUPERADMIN_EMAIL
+            and user.email == settings.SUPERADMIN_EMAIL
+            and user.role != "superadmin"
+        ):
+            user = await self.repository.update_role(user, "superadmin")
+
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
