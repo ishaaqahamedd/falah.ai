@@ -38,10 +38,14 @@ async def setup_onboarding(
     user_id = meta.get("user_id", "")
     persona_config = meta.get("persona_config", None)
 
+    # Task handles — populated after tasks are created, referenced by on_shutdown
+    _tasks: list[asyncio.Task] = []
+
     # --- Shutdown callback: generate onboarding summary ---
     async def on_shutdown(reason: str):
         logger.info(f"[Agent] Onboarding shutdown triggered: {reason}")
-        heartbeat_task.cancel()
+        for t in _tasks:
+            t.cancel()
         transcript = recorder.get_transcript()
         duration = int(time.time() - start_time)
         logger.info(f"[Agent] Captured {len(transcript)} turns over {duration}s.")
@@ -71,7 +75,7 @@ async def setup_onboarding(
                 f"[Agent] Onboarding heartbeat: {elapsed // 60}m elapsed, {turns} turns"
             )
 
-    heartbeat_task = asyncio.create_task(_heartbeat())
+    _tasks.append(asyncio.create_task(_heartbeat()))
 
     # --- Screen share start detection ---
     @ctx.room.on("track_subscribed")
@@ -176,7 +180,7 @@ async def setup_onboarding(
                 last_activity_ts[0] = time.time()
                 nudge_counter[0] += 1
 
-    asyncio.create_task(_silence_nudge())
+    _tasks.append(asyncio.create_task(_silence_nudge()))
 
     # --- Activity-aware auto-end: idle timer + hard cap ---
     IDLE_WARNING = 90
@@ -253,4 +257,4 @@ async def setup_onboarding(
                 goodbye_sent = False
                 nudge_counter[0] = 0
 
-    asyncio.create_task(_onboarding_auto_end())
+    _tasks.append(asyncio.create_task(_onboarding_auto_end()))
