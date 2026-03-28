@@ -5,6 +5,7 @@ interface User {
   id: string;
   email: string;
   full_name: string;
+  role: string;
   onboarding_status: 'pending' | 'in_progress' | 'completed' | 'skipped';
   onboarding_step: string | null;
 }
@@ -23,7 +24,7 @@ export const useUserStore = create<UserState>()(
       isAuthenticated: false,
       setAuth: (user) => set({ user, isAuthenticated: !!user }),
       logout: () => {
-        localStorage.removeItem('access_token');
+        // Cookie is cleared by backend /auth/logout endpoint
         set({ user: null, isAuthenticated: false });
       },
     }),

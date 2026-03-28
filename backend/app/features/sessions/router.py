@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from typing import Annotated, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.database import get_db
 from app.features.auth.router import get_current_user
@@ -15,6 +17,7 @@ import logging
 logger = logging.getLogger("sessions-router")
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionService:
@@ -43,14 +46,17 @@ async def update_session(
 
 
 @router.post("/{session_id}/score", response_model=SessionResponse)
+@limiter.limit("5/minute")
 async def trigger_scoring(
+    request: Request,
     session_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: SessionService = Depends(get_session_service),
 ):
     """Trigger AI scoring + summary generation for a completed session."""
     session = await service.trigger_scoring(session_id, current_user.id)
-    logger.info(f"Session {session_id} scored: {session.scorecard.get('overall_score', '?')}/10")
+    score = (session.scorecard or {}).get("overall_score", "?")
+    logger.info(f"Session {session_id} scored: {score}/10")
     return session
 
 
@@ -59,10 +65,11 @@ async def list_sessions(
     current_user: Annotated[User, Depends(get_current_user)],
     service: SessionService = Depends(get_session_service),
     persona_id: Optional[UUID] = None,
+    offset: int = 0,
     limit: int = 20,
 ):
     """List pitch sessions, optionally filtered by persona."""
-    return await service.list_sessions(current_user.id, persona_id, limit)
+    return await service.list_sessions(current_user.id, persona_id, offset, limit)
 
 
 @router.get("/{session_id}", response_model=SessionResponse)

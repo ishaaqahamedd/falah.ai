@@ -1,5 +1,6 @@
-import json
 import logging
+import time
+from typing import Any
 from uuid import UUID
 
 from livekit import api
@@ -8,12 +9,18 @@ from livekit.protocol.room import CreateRoomRequest
 from app.core.config import settings
 from app.features.personas.repository import PersonaRepository
 from app.features.sessions.repository import SessionRepository
+from app.features.onboarding.prompts import (
+    get_onboarding_persona_config,
+    get_onboarding_system_prompt_suffix,
+)
 
 logger = logging.getLogger("livekit-service")
 
 
 class LivekitService:
-    def __init__(self, persona_repo: PersonaRepository, session_repo: SessionRepository):
+    def __init__(
+        self, persona_repo: PersonaRepository, session_repo: SessionRepository
+    ):
         self.persona_repo = persona_repo
         self.session_repo = session_repo
 
@@ -21,7 +28,7 @@ class LivekitService:
         self, user_id: UUID, persona_id: str, context: str
     ) -> dict:
         """Build the metadata dict that gets attached to the LiveKit room."""
-        metadata = {
+        metadata: dict[str, Any] = {
             "persona_id": persona_id,
             "context": context,
             "user_id": str(user_id),
@@ -58,8 +65,12 @@ class LivekitService:
                     metadata["session_history"] = [
                         {
                             "summary": s.ai_summary,
-                            "date": s.ended_at.strftime("%B %d, %Y") if s.ended_at else "Unknown",
-                            "score": s.scorecard.get("overall_score") if s.scorecard else None,
+                            "date": s.ended_at.strftime("%B %d, %Y")
+                            if s.ended_at
+                            else "Unknown",
+                            "score": s.scorecard.get("overall_score")
+                            if s.scorecard
+                            else None,
                         }
                         for s in reversed(past_sessions)
                     ]
@@ -68,10 +79,35 @@ class LivekitService:
                     )
 
                 logger.info(f"Embedded dynamic persona config for: {persona.name}")
-        except (ValueError, AttributeError):
-            pass
+        except (ValueError, AttributeError) as e:
+            logger.warning(
+                f"Could not load dynamic persona config for '{persona_id}': {e}"
+            )
 
         return metadata
+
+    def build_onboarding_metadata(
+        self,
+        user_id: str,
+        user_name: str,
+        current_step: str,
+        previous_summary: str | None,
+    ) -> tuple[str, dict]:
+        """Build room name + metadata for an onboarding session."""
+        room_name = f"onboarding-{user_id}-{int(time.time())}"
+        persona_config = get_onboarding_persona_config(
+            user_name, current_step, previous_summary
+        )
+        metadata = {
+            "mode": "onboarding",
+            "user_id": user_id,
+            "persona_id": "onboarding",
+            "persona_config": persona_config,
+            "context": get_onboarding_system_prompt_suffix(
+                current_step, previous_summary
+            ),
+        }
+        return room_name, metadata
 
     def generate_token(self, user_id: str, user_name: str, room: str) -> str:
         """Generate a LiveKit access token."""

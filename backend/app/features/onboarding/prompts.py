@@ -6,7 +6,9 @@ ONBOARDING_STEPS = [
 ]
 
 
-def get_onboarding_persona_config(user_name: str, current_step: str = "welcome", previous_summary: str | None = None) -> dict:
+def get_onboarding_persona_config(
+    user_name: str, current_step: str = "welcome", previous_summary: str | None = None
+) -> dict:
     """Return the hardcoded onboarding agent persona config."""
 
     # Resumption-aware opening message
@@ -58,7 +60,9 @@ def get_onboarding_persona_config(user_name: str, current_step: str = "welcome",
     }
 
 
-def get_onboarding_system_prompt_suffix(current_step: str, previous_summary: str | None = None) -> str:
+def get_onboarding_system_prompt_suffix(
+    current_step: str, previous_summary: str | None = None
+) -> str:
     """Additional context appended to the dynamic prompt about current step."""
     suffix = f"""
 

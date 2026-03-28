@@ -6,15 +6,32 @@ import { ChevronLeftIcon, PlayIcon, GlobeIcon, LockIcon } from '../../shared/ui/
 import { Drawer } from '../../shared/ui/Drawer';
 import { PreFlightDrawer } from '../../widgets/preflight-drawer/PreFlightDrawer';
 
+/** Loose persona shape — covers both preset and custom personas */
+interface AgentDetail {
+  id: string;
+  name: string;
+  role: string;
+  type: string;
+  personality: string;
+  focus_areas: string;
+  voice: string;
+  scoring_criteria?: { key?: string; label: string; desc: string }[] | null;
+  behavior_rules?: string[];
+  opening_message?: string | null;
+  is_public?: boolean;
+  use_count?: number;
+  history?: string;
+}
+
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [persona, setPersona] = useState<any>(null);
+  const [persona, setPersona] = useState<AgentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPreset, setIsPreset] = useState(false);
   const [showPreflight, setShowPreflight] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState<any>({});
+  const [editData, setEditData] = useState<Partial<AgentDetail>>({});
   const [saving, setSaving] = useState(false);
   const [showVisibilityConfirm, setShowVisibilityConfirm] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
@@ -59,7 +76,7 @@ export function AgentDetailPage() {
   };
 
   const handleToggleVisibility = async () => {
-    if (!id || isPreset) return;
+    if (!id || isPreset || !persona) return;
     setTogglingVisibility(true);
     try {
       const updated = await updatePersona(id, { is_public: !persona.is_public });
@@ -228,7 +245,7 @@ export function AgentDetailPage() {
           <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Scoring Criteria</h3>
           {persona.scoring_criteria && persona.scoring_criteria.length > 0 ? (
             <div className="space-y-2">
-              {persona.scoring_criteria.map((c: any, i: number) => (
+              {persona.scoring_criteria.map((c, i) => (
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-text-primary font-medium">{c.label}</span>
                   <span className="text-text-muted text-xs">{c.desc}</span>

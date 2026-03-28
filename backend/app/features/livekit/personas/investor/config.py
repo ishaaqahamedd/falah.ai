@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class InvestorPersona(BaseModel):
     id: str
     name: str

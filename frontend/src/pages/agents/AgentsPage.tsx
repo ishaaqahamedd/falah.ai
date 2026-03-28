@@ -4,10 +4,11 @@ import { getPersonas, createPersona, deletePersona, updatePersona } from '../../
 import { PersonaForm } from '../../features/personas/PersonaForm';
 import { PERSONA_OPTIONS } from '../../entities/personas/constants';
 import { PlusIcon, TrashIcon, GlobeIcon, LockIcon } from '../../shared/ui/Icons';
+import type { Persona } from '@shared/types';
 
 export function AgentsPage() {
   const navigate = useNavigate();
-  const [customPersonas, setCustomPersonas] = useState<any[]>([]);
+  const [customPersonas, setCustomPersonas] = useState<Persona[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isFormLoading, setIsFormLoading] = useState(false);
   const [visibilityConfirm, setVisibilityConfirm] = useState<{ id: string; name: string; currentlyPublic: boolean } | null>(null);
@@ -25,7 +26,7 @@ export function AgentsPage() {
     }
   };
 
-  const handleCreateSubmit = async (formData: any) => {
+  const handleCreateSubmit = async (formData: Record<string, unknown>) => {
     setIsFormLoading(true);
     try {
       await createPersona(formData);

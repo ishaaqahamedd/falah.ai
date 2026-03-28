@@ -1,9 +1,10 @@
 import React from 'react';
 import { getScoreColor } from '../../shared/lib/formatters';
 import { SCORE_DIMENSIONS } from '../../entities/sessions/constants';
+import type { Scorecard as ScorecardType, ScorecardDimension } from '@shared/types';
 
 interface ScorecardProps {
-  scorecard: any;
+  scorecard: ScorecardType | null;
   onTriggerScoring: () => void;
   scoring: boolean;
   hasTranscript: boolean;
@@ -29,8 +30,9 @@ export function Scorecard({ scorecard, onTriggerScoring, scoring, hasTranscript 
         {/* Dimension Bars */}
         <div className="grid grid-cols-1 gap-4">
           {SCORE_DIMENSIONS.map(dim => {
-            const dimData = scorecard[dim.key];
-            if (!dimData) return null;
+            const raw = scorecard[dim.key];
+            if (!raw || typeof raw !== 'object') return null;
+            const dimData = raw as ScorecardDimension;
             const color = getScoreColor(dimData.score);
             return (
               <div key={dim.key} className="bg-slate-800 border border-slate-700 rounded-xl p-5">

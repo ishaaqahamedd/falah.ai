@@ -1,10 +1,25 @@
 import { Drawer } from '../../shared/ui/Drawer';
 import { GlobeIcon, PlayIcon } from '../../shared/ui/Icons';
+import type { ScoringCriterion } from '@shared/types';
+
+interface AgentPreviewData {
+  name: string;
+  role: string;
+  type: string;
+  personality: string;
+  focus_areas?: string;
+  voice?: string;
+  scoring_criteria?: ScoringCriterion[] | null;
+  behavior_rules?: string[];
+  opening_message?: string | null;
+  creator_name?: string;
+  use_count?: number;
+}
 
 interface AgentPreviewDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  agent: any;
+  agent: AgentPreviewData | null;
   /** 'template' shows "Add to My Agents", 'community' shows "Use This Agent" */
   variant: 'template' | 'community';
   onAction: () => void;
@@ -43,7 +58,7 @@ export function AgentPreviewDrawer({
           {!isTemplate && agent.creator_name && (
             <p className="text-xs text-text-muted mt-2">by {agent.creator_name}</p>
           )}
-          {!isTemplate && agent.use_count > 0 && (
+          {!isTemplate && (agent.use_count ?? 0) > 0 && (
             <p className="text-xs text-text-muted mt-1">{agent.use_count} uses</p>
           )}
         </div>
@@ -67,7 +82,7 @@ export function AgentPreviewDrawer({
           <div className="space-y-2">
             <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Scoring Criteria</h4>
             <div className="bg-surface border border-border-primary rounded-xl p-4 space-y-2">
-              {agent.scoring_criteria.map((c: any, i: number) => (
+              {agent.scoring_criteria.map((c, i) => (
                 <div key={i} className="flex justify-between items-start gap-3 text-sm">
                   <span className="text-text-primary font-medium shrink-0">{c.label}</span>
                   <span className="text-text-muted text-xs text-right">{c.desc}</span>

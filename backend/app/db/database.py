@@ -14,19 +14,15 @@ engine = create_async_engine(
     # Future-proofing pool settings if deployed serverlessly
     pool_size=5,
     max_overflow=10,
-    connect_args={
-        "statement_cache_size": 0,
-        "prepared_statement_cache_size": 0
-    }
+    connect_args={"statement_cache_size": 0, "prepared_statement_cache_size": 0},
 )
 
 AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    bind=engine, class_=AsyncSession, expire_on_commit=False
 )
 
 Base = declarative_base()
+
 
 async def get_db():
     async with AsyncSessionLocal() as session:

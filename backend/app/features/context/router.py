@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from typing import Annotated, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.db.database import get_db
 from app.features.auth.router import get_current_user
@@ -9,10 +11,15 @@ from app.features.auth.models import User
 from app.features.personas.repository import PersonaRepository
 from .repository import ContextRepository
 from .service import ContextService
-
-import json
+from .schemas import (
+    BriefingResponse,
+    ContextDocumentListItem,
+    ContextDocumentResponse,
+    ContextSearchResult,
+)
 
 router = APIRouter(prefix="/api/v1/context", tags=["context"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 def get_context_service(db: AsyncSession = Depends(get_db)) -> ContextService:
@@ -22,8 +29,10 @@ def get_context_service(db: AsyncSession = Depends(get_db)) -> ContextService:
     )
 
 
-@router.post("/upload", status_code=201)
+@router.post("/upload", status_code=201, response_model=ContextDocumentResponse)
+@limiter.limit("10/minute")
 async def upload_document(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     service: ContextService = Depends(get_context_service),
     file: UploadFile = File(...),
@@ -33,15 +42,15 @@ async def upload_document(
 ):
     """Upload a document, extract text, generate embedding, and save to Vector DB."""
     content = await file.read()
-    text = content.decode("utf-8")
 
-    meta = {}
     try:
-        meta = json.loads(metadata_json)
-    except Exception:
-        pass
+        text, meta = service.validate_and_extract_text(
+            content, file.content_type, metadata_json
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    doc = await service.upload_document(
+    return await service.upload_document(
         user_id=current_user.id,
         text=text,
         filename=file.filename,
@@ -49,37 +58,19 @@ async def upload_document(
         content_type=content_type,
         metadata=meta,
     )
-    return {
-        "id": str(doc.id),
-        "user_id": str(doc.user_id),
-        "persona_id": str(doc.persona_id) if doc.persona_id else None,
-        "filename": doc.filename,
-        "content_type": doc.content_type,
-        "content": doc.content[:200] + "..." if len(doc.content) > 200 else doc.content,
-        "created_at": doc.created_at.isoformat(),
-    }
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=list[ContextDocumentListItem])
 async def list_documents(
     persona_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: ContextService = Depends(get_context_service),
 ):
     """List all uploaded context documents for a persona."""
-    docs = await service.list_documents(persona_id, current_user.id)
-    return [
-        {
-            "id": str(d.id),
-            "filename": d.filename,
-            "content_type": d.content_type,
-            "created_at": d.created_at.isoformat(),
-        }
-        for d in docs
-    ]
+    return await service.list_documents(persona_id, current_user.id)
 
 
-@router.get("/briefing")
+@router.get("/briefing", response_model=BriefingResponse)
 async def get_pre_call_briefing(
     persona_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -92,7 +83,7 @@ async def get_pre_call_briefing(
     return await service.get_briefing(persona_id, current_user.id, force_refresh, limit)
 
 
-@router.get("/search")
+@router.get("/search", response_model=list[ContextSearchResult])
 async def search_context(
     query: str,
     persona_id: UUID,
@@ -101,5 +92,4 @@ async def search_context(
     top_k: int = 3,
 ):
     """Semantic search against persona context using pgvector L2 distance."""
-    docs = await service.search_context(query, persona_id, current_user.id, top_k)
-    return [{"id": d.id, "content": d.content, "filename": d.filename} for d in docs]
+    return await service.search_context(query, persona_id, current_user.id, top_k)

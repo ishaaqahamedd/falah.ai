@@ -10,8 +10,10 @@ class PersonaService:
     def __init__(self, repository: PersonaRepository):
         self.repository = repository
 
-    async def list_personas(self, user_id: UUID) -> list[Persona]:
-        return await self.repository.list_by_user(user_id)
+    async def list_personas(
+        self, user_id: UUID, offset: int = 0, limit: int = 50
+    ) -> list[Persona]:
+        return await self.repository.list_by_user(user_id, offset, limit)
 
     async def create_persona(self, user_id: UUID, data: PersonaCreate) -> Persona:
         scoring = None
@@ -35,12 +37,18 @@ class PersonaService:
     async def get_persona(self, persona_id: UUID, user_id: UUID) -> Persona:
         persona = await self.repository.get_by_id_and_user(persona_id, user_id)
         if not persona:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Persona not found"
+            )
         return persona
 
-    async def update_persona(self, persona_id: UUID, user_id: UUID, data: PersonaUpdate) -> Persona:
+    async def update_persona(
+        self, persona_id: UUID, user_id: UUID, data: PersonaUpdate
+    ) -> Persona:
         persona = await self.get_persona(persona_id, user_id)
-        return await self.repository.update(persona, data.model_dump(exclude_unset=True))
+        return await self.repository.update(
+            persona, data.model_dump(exclude_unset=True)
+        )
 
     async def delete_persona(self, persona_id: UUID, user_id: UUID) -> None:
         persona = await self.get_persona(persona_id, user_id)
@@ -56,7 +64,11 @@ class PersonaService:
         rows = await self.repository.list_public(search, type_filter, offset, limit)
         return [
             CommunityPersonaResponse.model_validate(
-                {**persona.__dict__, "creator_name": creator_name, "user_id": persona.user_id}
+                {
+                    **persona.__dict__,
+                    "creator_name": creator_name,
+                    "user_id": persona.user_id,
+                }
             )
             for persona, creator_name in rows
         ]

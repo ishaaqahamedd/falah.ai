@@ -13,11 +13,11 @@ export const ProtectedRoute = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      if (localStorage.getItem('access_token')) {
+      if (isAuthenticated) {
         try {
           await fetchCurrentUser();
         } catch (e) {
-          console.error("Token verification failed");
+          // Cookie expired or invalid — logout handled by fetchCurrentUser
         }
       }
       setIsVerifying(false);
@@ -29,7 +29,7 @@ export const ProtectedRoute = () => {
     return <div className="h-screen w-screen bg-surface flex items-center justify-center text-text-primary">Verifying session...</div>;
   }
 
-  if (!isAuthenticated && !localStorage.getItem('access_token')) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

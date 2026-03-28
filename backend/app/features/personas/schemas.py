@@ -16,7 +16,9 @@ class PersonaCreate(BaseModel):
     role: str = Field(..., min_length=1, max_length=255)
     personality: str = Field(..., min_length=1)
     focus_areas: str = Field(..., min_length=1)
-    voice: str = Field(default="Puck", pattern=r"^(Puck|Charon|Kore|Fenrir|Aoede|Leda|Orus|Zephyr)$")
+    voice: str = Field(
+        default="Puck", pattern=r"^(Puck|Charon|Kore|Fenrir|Aoede|Leda|Orus|Zephyr)$"
+    )
     scoring_criteria: Optional[list[ScoringCriterion]] = None
     behavior_rules: Optional[list[str]] = None
     opening_message: Optional[str] = None

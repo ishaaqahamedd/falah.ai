@@ -3,17 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { Drawer } from '../../shared/ui/Drawer';
 import { ContextUploader } from '../../features/context/ContextUploader';
 import { apiClient } from '../../shared/api/client';
+import type { Briefing } from '@shared/types';
+
+interface PreFlightPersona {
+  id: string;
+  name: string;
+  role: string;
+  creator_name?: string;
+  isCommunityAgent?: boolean;
+  isCustom?: boolean;
+}
 
 interface PreFlightDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  persona: any;
+  persona: PreFlightPersona;
 }
 
 export function PreFlightDrawer({ isOpen, onClose, persona }: PreFlightDrawerProps) {
   const navigate = useNavigate();
   const [context, setContext] = useState('');
-  const [briefing, setBriefing] = useState<any>(null);
+  const [briefing, setBriefing] = useState<Briefing | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string>('');

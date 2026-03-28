@@ -22,7 +22,9 @@ class SessionRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_id_and_user(self, session_id: UUID, user_id: UUID) -> Optional[PitchSession]:
+    async def get_by_id_and_user(
+        self, session_id: UUID, user_id: UUID
+    ) -> Optional[PitchSession]:
         result = await self.session.execute(
             select(PitchSession).where(
                 PitchSession.id == session_id,
@@ -37,12 +39,18 @@ class SessionRepository:
         return session_record
 
     async def list_by_user(
-        self, user_id: UUID, persona_id: Optional[UUID] = None, limit: int = 20
+        self,
+        user_id: UUID,
+        persona_id: Optional[UUID] = None,
+        offset: int = 0,
+        limit: int = 20,
     ) -> list[PitchSession]:
         query = select(PitchSession).where(PitchSession.user_id == user_id)
         if persona_id:
             query = query.where(PitchSession.persona_id == persona_id)
-        query = query.order_by(PitchSession.started_at.desc()).limit(limit)
+        query = (
+            query.order_by(PitchSession.started_at.desc()).offset(offset).limit(limit)
+        )
         result = await self.session.execute(query)
         return list(result.scalars().all())
 

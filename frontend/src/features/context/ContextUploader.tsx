@@ -27,9 +27,8 @@ export function ContextUploader({ personaId, onUploadComplete }: ContextUploader
         const res = await apiClient.get('/context/documents', { params: { persona_id: personaId } });
         const existing = res.data.map((d: { filename: string; id: string }) => ({ name: d.filename, size: null, id: d.id }));
         setUploadedFiles(existing);
-      } catch (e) {
+      } catch {
         // Silently fail — not critical
-        console.log('No existing docs or fetch failed');
       }
     };
     fetchExisting();

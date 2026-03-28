@@ -4,11 +4,13 @@ import { getSession, getSessions, triggerScoring } from '../../features/sessions
 import { SCORE_DIMENSIONS } from '../../entities/sessions/constants';
 import { getScoreColor, formatTimestamp } from '../../shared/lib/formatters';
 import { ChevronLeftIcon } from '../../shared/ui/Icons';
+import type { Session, ScoringCriterion, TranscriptTurn } from '@shared/types';
+import { SESSION_POLL_INTERVAL_MS } from '../../shared/lib/constants';
 
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -64,7 +66,7 @@ export function SessionDetailPage() {
           setSession(data);
         }
       } catch {}
-    }, 3000);
+    }, SESSION_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [id, isActive]);
 
@@ -179,9 +181,10 @@ export function SessionDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {dimensions.map((dim: any) => {
-              const dimData = sc[dim.key];
-              if (!dimData) return null;
+            {dimensions.map((dim: ScoringCriterion) => {
+              const raw = sc[dim.key];
+              if (!raw || typeof raw !== 'object') return null;
+              const dimData = raw as { score: number; feedback: string };
               const color = getScoreColor(dimData.score);
               return (
                 <div key={dim.key} className="bg-surface-secondary border border-border-primary rounded-xl p-5">
@@ -244,7 +247,7 @@ export function SessionDetailPage() {
 
           {showTranscript && (
             <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 max-h-[500px] overflow-y-auto space-y-4">
-              {session.transcript.map((turn: any, i: number) => (
+              {session.transcript.map((turn: TranscriptTurn, i: number) => (
                 <div key={i} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${
                     turn.role === 'user'

@@ -22,11 +22,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Charon",
         "scoring_criteria": [
-            {"key": "clarity", "label": "Clarity", "desc": "Clear and structured pitch"},
-            {"key": "objection_handling", "label": "Objection Handling", "desc": "Addressed concerns effectively"},
-            {"key": "engagement", "label": "Engagement", "desc": "Natural conversation flow"},
-            {"key": "context_awareness", "label": "Context Awareness", "desc": "Referenced background info"},
-            {"key": "closing_strength", "label": "Closing Strength", "desc": "Drove toward next steps"},
+            {
+                "key": "clarity",
+                "label": "Clarity",
+                "desc": "Clear and structured pitch",
+            },
+            {
+                "key": "objection_handling",
+                "label": "Objection Handling",
+                "desc": "Addressed concerns effectively",
+            },
+            {
+                "key": "engagement",
+                "label": "Engagement",
+                "desc": "Natural conversation flow",
+            },
+            {
+                "key": "context_awareness",
+                "label": "Context Awareness",
+                "desc": "Referenced background info",
+            },
+            {
+                "key": "closing_strength",
+                "label": "Closing Strength",
+                "desc": "Drove toward next steps",
+            },
         ],
         "behavior_rules": [
             "Be skeptical of vague claims — demand specific numbers.",
@@ -53,11 +73,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Kore",
         "scoring_criteria": [
-            {"key": "clarity", "label": "Clarity", "desc": "Clear and structured pitch"},
-            {"key": "objection_handling", "label": "Objection Handling", "desc": "Addressed concerns effectively"},
-            {"key": "engagement", "label": "Engagement", "desc": "Natural conversation flow"},
-            {"key": "context_awareness", "label": "Context Awareness", "desc": "Referenced background info"},
-            {"key": "closing_strength", "label": "Closing Strength", "desc": "Drove toward next steps"},
+            {
+                "key": "clarity",
+                "label": "Clarity",
+                "desc": "Clear and structured pitch",
+            },
+            {
+                "key": "objection_handling",
+                "label": "Objection Handling",
+                "desc": "Addressed concerns effectively",
+            },
+            {
+                "key": "engagement",
+                "label": "Engagement",
+                "desc": "Natural conversation flow",
+            },
+            {
+                "key": "context_awareness",
+                "label": "Context Awareness",
+                "desc": "Referenced background info",
+            },
+            {
+                "key": "closing_strength",
+                "label": "Closing Strength",
+                "desc": "Drove toward next steps",
+            },
         ],
         "behavior_rules": [
             "Immediately ask about security certifications and compliance.",
@@ -84,11 +124,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Aoede",
         "scoring_criteria": [
-            {"key": "completeness", "label": "Completeness", "desc": "Covered all setup steps"},
-            {"key": "empathy", "label": "Empathy", "desc": "Patient and encouraging tone"},
-            {"key": "clarity", "label": "Clarity", "desc": "Instructions were easy to follow"},
-            {"key": "engagement", "label": "Engagement", "desc": "Kept the user engaged and asking questions"},
-            {"key": "follow_up", "label": "Follow-up", "desc": "Confirmed understanding and offered next steps"},
+            {
+                "key": "completeness",
+                "label": "Completeness",
+                "desc": "Covered all setup steps",
+            },
+            {
+                "key": "empathy",
+                "label": "Empathy",
+                "desc": "Patient and encouraging tone",
+            },
+            {
+                "key": "clarity",
+                "label": "Clarity",
+                "desc": "Instructions were easy to follow",
+            },
+            {
+                "key": "engagement",
+                "label": "Engagement",
+                "desc": "Kept the user engaged and asking questions",
+            },
+            {
+                "key": "follow_up",
+                "label": "Follow-up",
+                "desc": "Confirmed understanding and offered next steps",
+            },
         ],
         "behavior_rules": [
             "Always confirm the user completed each step before moving on.",
@@ -115,11 +175,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Puck",
         "scoring_criteria": [
-            {"key": "accuracy", "label": "Accuracy", "desc": "Information was correct and up-to-date"},
-            {"key": "clarity", "label": "Clarity", "desc": "Explanations were clear and well-structured"},
-            {"key": "pacing", "label": "Pacing", "desc": "Adapted speed to the learner's level"},
-            {"key": "interactivity", "label": "Interactivity", "desc": "Asked questions and encouraged participation"},
-            {"key": "knowledge_depth", "label": "Knowledge Depth", "desc": "Went beyond surface-level explanation"},
+            {
+                "key": "accuracy",
+                "label": "Accuracy",
+                "desc": "Information was correct and up-to-date",
+            },
+            {
+                "key": "clarity",
+                "label": "Clarity",
+                "desc": "Explanations were clear and well-structured",
+            },
+            {
+                "key": "pacing",
+                "label": "Pacing",
+                "desc": "Adapted speed to the learner's level",
+            },
+            {
+                "key": "interactivity",
+                "label": "Interactivity",
+                "desc": "Asked questions and encouraged participation",
+            },
+            {
+                "key": "knowledge_depth",
+                "label": "Knowledge Depth",
+                "desc": "Went beyond surface-level explanation",
+            },
         ],
         "behavior_rules": [
             "Start by asking what the user already knows about the topic.",
@@ -146,11 +226,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Orus",
         "scoring_criteria": [
-            {"key": "completeness", "label": "Completeness", "desc": "All critical knowledge areas covered"},
-            {"key": "clarity", "label": "Clarity", "desc": "Explanations were clear and transferable"},
-            {"key": "technical_depth", "label": "Technical Depth", "desc": "Sufficient technical detail provided"},
-            {"key": "handoff_quality", "label": "Handoff Quality", "desc": "Successor could operate independently"},
-            {"key": "documentation", "label": "Documentation", "desc": "Key points are documented or documentable"},
+            {
+                "key": "completeness",
+                "label": "Completeness",
+                "desc": "All critical knowledge areas covered",
+            },
+            {
+                "key": "clarity",
+                "label": "Clarity",
+                "desc": "Explanations were clear and transferable",
+            },
+            {
+                "key": "technical_depth",
+                "label": "Technical Depth",
+                "desc": "Sufficient technical detail provided",
+            },
+            {
+                "key": "handoff_quality",
+                "label": "Handoff Quality",
+                "desc": "Successor could operate independently",
+            },
+            {
+                "key": "documentation",
+                "label": "Documentation",
+                "desc": "Key points are documented or documentable",
+            },
         ],
         "behavior_rules": [
             "Ask 'What would happen if you weren't here?' to surface critical knowledge.",
@@ -177,11 +277,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Leda",
         "scoring_criteria": [
-            {"key": "star_method", "label": "STAR Method", "desc": "Used Situation-Task-Action-Result structure"},
-            {"key": "confidence", "label": "Confidence", "desc": "Spoke with clarity and conviction"},
-            {"key": "relevance", "label": "Relevance", "desc": "Examples were relevant to the question"},
-            {"key": "communication", "label": "Communication", "desc": "Clear, concise, and well-organized"},
-            {"key": "problem_solving", "label": "Problem Solving", "desc": "Demonstrated analytical thinking"},
+            {
+                "key": "star_method",
+                "label": "STAR Method",
+                "desc": "Used Situation-Task-Action-Result structure",
+            },
+            {
+                "key": "confidence",
+                "label": "Confidence",
+                "desc": "Spoke with clarity and conviction",
+            },
+            {
+                "key": "relevance",
+                "label": "Relevance",
+                "desc": "Examples were relevant to the question",
+            },
+            {
+                "key": "communication",
+                "label": "Communication",
+                "desc": "Clear, concise, and well-organized",
+            },
+            {
+                "key": "problem_solving",
+                "label": "Problem Solving",
+                "desc": "Demonstrated analytical thinking",
+            },
         ],
         "behavior_rules": [
             "Ask one behavioral question at a time. Wait for a full answer.",
@@ -208,11 +328,31 @@ PERSONA_TEMPLATES: list[dict] = [
         ),
         "voice": "Fenrir",
         "scoring_criteria": [
-            {"key": "resolution", "label": "Resolution", "desc": "Issue was resolved or properly escalated"},
-            {"key": "empathy", "label": "Empathy", "desc": "Showed understanding and patience"},
-            {"key": "response_quality", "label": "Response Quality", "desc": "Answers were accurate and helpful"},
-            {"key": "knowledge", "label": "Knowledge", "desc": "Demonstrated product/technical expertise"},
-            {"key": "escalation", "label": "Escalation", "desc": "Knew when and how to escalate properly"},
+            {
+                "key": "resolution",
+                "label": "Resolution",
+                "desc": "Issue was resolved or properly escalated",
+            },
+            {
+                "key": "empathy",
+                "label": "Empathy",
+                "desc": "Showed understanding and patience",
+            },
+            {
+                "key": "response_quality",
+                "label": "Response Quality",
+                "desc": "Answers were accurate and helpful",
+            },
+            {
+                "key": "knowledge",
+                "label": "Knowledge",
+                "desc": "Demonstrated product/technical expertise",
+            },
+            {
+                "key": "escalation",
+                "label": "Escalation",
+                "desc": "Knew when and how to escalate properly",
+            },
         ],
         "behavior_rules": [
             "Start by understanding the issue — ask clarifying questions before jumping to solutions.",

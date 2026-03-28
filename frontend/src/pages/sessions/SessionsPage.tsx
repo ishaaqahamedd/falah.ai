@@ -4,15 +4,19 @@ import { getSessions } from '../../features/sessions/api';
 import { getPersonas } from '../../features/personas/api';
 import { SearchInput } from '../../shared/ui/SearchInput';
 import { getScoreColor } from '../../shared/lib/formatters';
+import type { Session, Persona } from '@shared/types';
+import { SESSIONS_PAGE_SIZE, SESSIONS_LIST_POLL_INTERVAL_MS } from '../../shared/lib/constants';
+
+type SortKey = 'date' | 'score' | 'duration';
 
 export function SessionsPage() {
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [filtered, setFiltered] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [personas, setPersonas] = useState<any[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [filterPersona, setFilterPersona] = useState('');
-  const [sortBy, setSortBy] = useState<'date' | 'score' | 'duration'>('date');
+  const [sortBy, setSortBy] = useState<SortKey>('date');
 
   useEffect(() => {
     loadData();
@@ -22,7 +26,7 @@ export function SessionsPage() {
     setLoading(true);
     try {
       const [sessionsData, personasData] = await Promise.all([
-        getSessions(null, 100),
+        getSessions(null, SESSIONS_PAGE_SIZE),
         getPersonas(),
       ]);
       setSessions(sessionsData);
@@ -78,10 +82,10 @@ export function SessionsPage() {
     );
     if (!needsPoll) return;
     const interval = setInterval(() => {
-      getSessions(null, 100).then((data) => {
+      getSessions(null, SESSIONS_PAGE_SIZE).then((data) => {
         setSessions(data);
       }).catch(() => {});
-    }, 5000);
+    }, SESSIONS_LIST_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [sessions]);
 
@@ -121,7 +125,7 @@ export function SessionsPage() {
         </select>
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
+          onChange={(e) => setSortBy(e.target.value as SortKey)}
           className="bg-surface border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="date">Sort by Date</option>

@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.features.auth.router import get_current_user
 from app.features.auth.models import User
-from .schemas import PersonaCreate, PersonaUpdate, PersonaResponse, CommunityPersonaResponse
+from .schemas import (
+    PersonaCreate,
+    PersonaUpdate,
+    PersonaResponse,
+    CommunityPersonaResponse,
+)
 from .repository import PersonaRepository
 from .service import PersonaService
 
@@ -21,15 +26,18 @@ def get_persona_service(db: AsyncSession = Depends(get_db)) -> PersonaService:
 async def list_personas(
     current_user: Annotated[User, Depends(get_current_user)],
     service: PersonaService = Depends(get_persona_service),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
 ):
     """List all personas owned by the current user."""
-    return await service.list_personas(current_user.id)
+    return await service.list_personas(current_user.id, offset, limit)
 
 
 @router.get("/templates")
 async def list_templates():
     """Return starter persona templates for quick-start creation."""
     from .templates import PERSONA_TEMPLATES
+
     return PERSONA_TEMPLATES
 
 

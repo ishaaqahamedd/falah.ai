@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSessions, getSession } from './api';
+import type { Session } from '@shared/types';
 
 export function useSessionTimer() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -15,7 +16,7 @@ export function useSessionTimer() {
 }
 
 export function useSessionLoader(sessionId: string | null) {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadSession = async () => {
