@@ -66,12 +66,15 @@ class PersonaAgent(Agent):
 
 
 class TranscriptRecorder:
-    """Listens to AgentSession events and records user/agent conversation turns."""
+    """Listens to AgentSession events and records user/agent conversation turns.
+    Also broadcasts each turn in real-time to the frontend via LiveKit data channel.
+    """
 
     MAX_TURNS = 100
 
-    def __init__(self, session: AgentSession):
+    def __init__(self, session: AgentSession, room=None):
         self.session = session
+        self._room = room  # LiveKit room for real-time broadcast
         self.turns: list[dict] = []
         self._start_time = time.time()
 
@@ -85,15 +88,21 @@ class TranscriptRecorder:
             return
 
         role = "agent" if msg.role == "assistant" else "user"
-        self.turns.append(
-            {
-                "role": role,
-                "text": text,
-                "timestamp": round(event.created_at - self._start_time, 2),
-            }
-        )
+        turn = {
+            "role": role,
+            "text": text,
+            "timestamp": round(event.created_at - self._start_time, 2),
+        }
+        self.turns.append(turn)
         if len(self.turns) > self.MAX_TURNS:
             self.turns = self.turns[-self.MAX_TURNS :]
+
+        # Broadcast to frontend in real-time via LiveKit data channel
+        if self._room:
+            payload = json.dumps({"type": "transcript_turn", **turn}).encode("utf-8")
+            asyncio.ensure_future(
+                self._room.local_participant.publish_data(payload, reliable=True)
+            )
 
     def get_transcript(self) -> list[dict]:
         return self.turns
@@ -317,8 +326,8 @@ async def entrypoint(ctx: JobContext):
         )
     )
 
-    # 4. Attach transcript recorder
-    recorder = TranscriptRecorder(session)
+    # 4. Attach transcript recorder (pass room for real-time broadcast)
+    recorder = TranscriptRecorder(session, room=ctx.room)
     start_time = time.time()
 
     logger.info("[Agent] Starting audio/vision session...")
