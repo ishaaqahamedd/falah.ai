@@ -12,8 +12,7 @@ import { useOnboardingStore } from './store';
 import { updateOnboardingProgress } from './api';
 import { fetchCurrentUser } from '../auth/api';
 import { BotIcon, MicIcon } from '../../shared/ui/Icons';
-
-const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL;
+import { LIVEKIT_URL } from '../../shared/lib/env';
 
 const ONBOARDING_STEPS = [
   { key: 'welcome', label: 'Welcome to Falah' },
@@ -170,9 +169,9 @@ function BubbleUI({
     try {
       await localParticipant.setScreenShareEnabled(true, {
         preferCurrentTab: true,
-      } as any);
+      } as Record<string, unknown>);
     } catch (e) {
-      console.log('Screen share denied or failed:', e);
+      // Screen share denied or failed — user cancelled the picker
     }
   };
 

@@ -88,13 +88,15 @@ async def setup_onboarding(
             )
 
     # --- Multi-signal activity tracking (mutable lists to avoid nonlocal scope issues) ---
-    last_activity_ts = [time.time()]
+    last_activity_ts = [time.time()]      # Any activity (user + agent) — used for nudge timing
+    last_user_activity_ts = [time.time()] # User-only activity — used for idle auto-end
     nudge_counter = [0]
     screen_share_active = [False]
 
     @session.on("user_speech_committed")
     def _on_user_speech(ev):
         last_activity_ts[0] = time.time()
+        last_user_activity_ts[0] = time.time()
         nudge_counter[0] = 0  # Reset escalation on user speech
 
     @session.on("agent_speech_committed")
@@ -109,6 +111,7 @@ async def setup_onboarding(
     ):
         if publication.source == rtc.TrackSource.SOURCE_SCREENSHARE:
             last_activity_ts[0] = time.time()
+            last_user_activity_ts[0] = time.time()
             screen_share_active[0] = True
 
     @ctx.room.on("track_unsubscribed")
@@ -166,7 +169,7 @@ async def setup_onboarding(
             await asyncio.sleep(5)
             now = time.time()
             elapsed_total = now - session_start
-            idle_time = now - last_activity_ts[0]
+            idle_time = now - last_user_activity_ts[0]
 
             # Hard cap: 8 minutes max
             if elapsed_total >= HARD_CAP:
@@ -184,18 +187,17 @@ async def setup_onboarding(
                 continue
 
             # Idle-based shutdown sequence
-            if goodbye_sent and idle_time >= IDLE_SHUTDOWN:
+            if goodbye_sent and idle_time >= (IDLE_WARNING + IDLE_GOODBYE + IDLE_SHUTDOWN):
                 logger.info(f"[Agent] Onboarding idle shutdown after goodbye ({int(idle_time)}s idle)")
                 ctx.shutdown()
                 return
 
-            if warned_idle and not goodbye_sent and idle_time >= IDLE_GOODBYE:
+            if warned_idle and not goodbye_sent and idle_time >= (IDLE_WARNING + IDLE_GOODBYE):
                 goodbye_sent = True
-                logger.info(f"[Agent] Onboarding idle goodbye ({int(idle_time)}s since warning)")
+                logger.info(f"[Agent] Onboarding idle goodbye ({int(idle_time)}s idle)")
                 session.generate_reply(
                     user_input="Say a warm goodbye to the user. Tell them it was awesome setting up together, they can always come back, and encourage them to keep exploring. Keep it to 2-3 sentences max."
                 )
-                last_activity_ts[0] = now
                 continue
 
             if not warned_idle and idle_time >= IDLE_WARNING:
@@ -204,13 +206,13 @@ async def setup_onboarding(
                 session.generate_reply(
                     user_input="The user has been inactive for a while. Gently check in — ask if they're still there and if they'd like to continue or wrap up. Keep it warm and to 1-2 sentences."
                 )
-                last_activity_ts[0] = now
                 continue
 
-            # Reset idle sequence if user becomes active again
+            # Reset idle sequence only when user genuinely becomes active
             if idle_time < 10 and (warned_idle or goodbye_sent):
                 logger.info("[Agent] Onboarding — user active again, resetting idle sequence")
                 warned_idle = False
                 goodbye_sent = False
+                nudge_counter[0] = 0
 
     asyncio.create_task(_onboarding_auto_end())

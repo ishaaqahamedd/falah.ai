@@ -1,24 +1,20 @@
+import asyncio
 import json
 import logging
-import os
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from google import genai
 
+from app.core.config import settings
+from app.core.genai import get_genai_client
 from .models import PitchSession, SessionStatus
 from .repository import SessionRepository
 from .schemas import SessionCreate, SessionUpdate
 
 logger = logging.getLogger("sessions-service")
-
-
-def get_genai_client():
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    return genai.Client(api_key=api_key)
 
 
 DEFAULT_SCORING_CRITERIA = [
@@ -88,8 +84,9 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 }}"""
 
     try:
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=settings.GEMINI_FLASH_LITE_MODEL,
             contents=prompt,
         )
         text = response.text.strip()
@@ -131,8 +128,9 @@ TRANSCRIPT:
 Summary:"""
 
     try:
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite-preview",
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=settings.GEMINI_FLASH_LITE_MODEL,
             contents=prompt,
         )
         return response.text.strip()
@@ -176,9 +174,11 @@ class SessionService:
         self, session_id: UUID, user_id: UUID, data: SessionUpdate
     ) -> PitchSession:
         session_record = await self._get_or_404(session_id, user_id)
+        ALLOWED_UPDATE_FIELDS = {"transcript", "duration_seconds", "status", "ended_at"}
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
-            setattr(session_record, field, value)
+            if field in ALLOWED_UPDATE_FIELDS:
+                setattr(session_record, field, value)
         if data.status in (SessionStatus.COMPLETED, SessionStatus.CRASHED):
             session_record.ended_at = datetime.now(timezone.utc)
         return await self.repository.update(session_record)
@@ -197,9 +197,9 @@ class SessionService:
         return await self.repository.update(session_record)
 
     async def list_sessions(
-        self, user_id: UUID, persona_id: Optional[UUID] = None, limit: int = 20
+        self, user_id: UUID, persona_id: Optional[UUID] = None, offset: int = 0, limit: int = 20
     ) -> list[PitchSession]:
-        return await self.repository.list_by_user(user_id, persona_id, limit)
+        return await self.repository.list_by_user(user_id, persona_id, offset, limit)
 
     async def get_session(self, session_id: UUID, user_id: UUID) -> PitchSession:
         return await self._get_or_404(session_id, user_id)

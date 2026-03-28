@@ -11,14 +11,17 @@ from .service import OnboardingService
 router = APIRouter(prefix="/api/v1/onboarding", tags=["onboarding"])
 
 
+def get_onboarding_service(db: AsyncSession = Depends(get_db)) -> OnboardingService:
+    return OnboardingService(db)
+
+
 @router.patch("/progress")
 async def update_onboarding_progress(
     body: OnboardingProgressUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
-    db: AsyncSession = Depends(get_db),
+    service: OnboardingService = Depends(get_onboarding_service),
 ):
     try:
-        service = OnboardingService(db)
         user = await service.update_progress(current_user, body.step, body.status)
         return {
             "onboarding_status": user.onboarding_status,

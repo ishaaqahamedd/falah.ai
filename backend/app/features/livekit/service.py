@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from uuid import UUID
 
 from livekit import api
@@ -8,6 +9,7 @@ from livekit.protocol.room import CreateRoomRequest
 from app.core.config import settings
 from app.features.personas.repository import PersonaRepository
 from app.features.sessions.repository import SessionRepository
+from app.features.onboarding.prompts import get_onboarding_persona_config, get_onboarding_system_prompt_suffix
 
 logger = logging.getLogger("livekit-service")
 
@@ -68,10 +70,23 @@ class LivekitService:
                     )
 
                 logger.info(f"Embedded dynamic persona config for: {persona.name}")
-        except (ValueError, AttributeError):
-            pass
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Could not load dynamic persona config for '{persona_id}': {e}")
 
         return metadata
+
+    def build_onboarding_metadata(self, user_id: str, user_name: str, current_step: str, previous_summary: str | None) -> tuple[str, dict]:
+        """Build room name + metadata for an onboarding session."""
+        room_name = f"onboarding-{user_id}-{int(time.time())}"
+        persona_config = get_onboarding_persona_config(user_name, current_step, previous_summary)
+        metadata = {
+            "mode": "onboarding",
+            "user_id": user_id,
+            "persona_id": "onboarding",
+            "persona_config": persona_config,
+            "context": get_onboarding_system_prompt_suffix(current_step, previous_summary),
+        }
+        return room_name, metadata
 
     def generate_token(self, user_id: str, user_name: str, room: str) -> str:
         """Generate a LiveKit access token."""

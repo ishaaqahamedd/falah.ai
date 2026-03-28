@@ -11,8 +11,7 @@ import {
 import { Track } from 'livekit-client';
 import { getLiveKitToken } from '../../features/livekit/api';
 import { createSession } from '../../features/sessions/api';
-
-const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL;
+import { LIVEKIT_URL } from '../../shared/lib/env';
 
 export function LivePitchPage() {
   const { roomName } = useParams<{ roomName: string }>();

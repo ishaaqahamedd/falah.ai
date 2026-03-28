@@ -1,39 +1,30 @@
-import json
+import asyncio
 import logging
-import os
 from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from google import genai
-from google.genai import types
 
+from app.core.config import settings
+from app.core.genai import get_genai_client
 from .models import ContextDocument
 from .repository import ContextRepository
 from app.features.personas.repository import PersonaRepository
 
 logger = logging.getLogger("context-service")
 
-
-def get_genai_client():
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    # For safety, ensure we have a client. (Ideally, instantiate once globally or via DI)
-    return genai.Client(api_key=api_key)
-
 async def generate_embedding(text: str) -> list[float]:
-    """Generate a 768-dimensional embedding using text-embedding-004."""
+    """Generate a 768-dimensional embedding using Gemini embedding model."""
     client = get_genai_client()
     try:
-        # Use simple asynchronous call or synchronous call for embedding
-        # The new Google GenAI SDK usage for models/text-embedding-004
-        result = client.models.embed_content(
-            model='gemini-embedding-2-preview',
+        result = await asyncio.to_thread(
+            client.models.embed_content,
+            model=settings.GEMINI_EMBEDDING_MODEL,
             contents=text,
         )
         return result.embeddings[0].values
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Embedding generation failed")
         raise ValueError(f"Failed to generate embedding: {e}")
 
 async def summarize_context(texts: list[str], persona_name: str, persona_role: str) -> str:
@@ -42,7 +33,7 @@ async def summarize_context(texts: list[str], persona_name: str, persona_role: s
         return "No prior context available."
         
     client = get_genai_client()
-    
+
     combined_text = "\n\n---\n\n".join(texts)
     
     prompt = f"""You are an AI assistant preparing a salesperson for a pitch with {persona_name} ({persona_role}).
@@ -74,14 +65,14 @@ Context Data:
 """
     
     try:
-        response = client.models.generate_content(
-            model='gemini-3.1-flash-lite-preview',
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=settings.GEMINI_FLASH_LITE_MODEL,
             contents=prompt,
         )
         return response.text
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.exception("Briefing generation failed")
         return "Error: Could not generate briefing from provided context."
 
 

@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from typing import Annotated, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+import logging
 
 from app.db.database import get_db
 from app.features.auth.router import get_current_user
@@ -12,7 +15,13 @@ from .service import ContextService
 
 import json
 
+logger = logging.getLogger("context-router")
+
 router = APIRouter(prefix="/api/v1/context", tags=["context"])
+limiter = Limiter(key_func=get_remote_address)
+
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+ALLOWED_CONTENT_TYPES = {"text/plain", "application/pdf", "text/csv", "text/markdown"}
 
 
 def get_context_service(db: AsyncSession = Depends(get_db)) -> ContextService:
@@ -23,7 +32,9 @@ def get_context_service(db: AsyncSession = Depends(get_db)) -> ContextService:
 
 
 @router.post("/upload", status_code=201)
+@limiter.limit("10/minute")
 async def upload_document(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     service: ContextService = Depends(get_context_service),
     file: UploadFile = File(...),
@@ -33,13 +44,24 @@ async def upload_document(
 ):
     """Upload a document, extract text, generate embedding, and save to Vector DB."""
     content = await file.read()
-    text = content.decode("utf-8")
+
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB")
+
+    if file.content_type and file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {file.content_type}")
+
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="File is not valid UTF-8 text")
 
     meta = {}
     try:
         meta = json.loads(metadata_json)
-    except Exception:
-        pass
+    except (json.JSONDecodeError, TypeError):
+        logger.warning(f"Invalid metadata JSON from user {current_user.id}, ignoring")
+        meta = {}
 
     doc = await service.upload_document(
         user_id=current_user.id,

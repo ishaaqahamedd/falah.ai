@@ -5,24 +5,27 @@ import { SearchInput } from '../../shared/ui/SearchInput';
 import { PreFlightDrawer } from '../../widgets/preflight-drawer/PreFlightDrawer';
 import { AgentPreviewDrawer } from '../../widgets/agent-preview-drawer/AgentPreviewDrawer';
 import { useUserStore } from '../../entities/user/store';
+import type { PersonaTemplate, CommunityPersona } from '../../types';
+
+type PreFlightPersona = CommunityPersona & { isCommunityAgent?: boolean };
 
 export function CommunityPage() {
   const navigate = useNavigate();
   const user = useUserStore((s) => s.user);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [communityAgents, setCommunityAgents] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<PersonaTemplate[]>([]);
+  const [communityAgents, setCommunityAgents] = useState<CommunityPersona[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [cloning, setCloning] = useState<string | null>(null);
 
   // Preview drawer state
-  const [previewAgent, setPreviewAgent] = useState<any>(null);
+  const [previewAgent, setPreviewAgent] = useState<PersonaTemplate | CommunityPersona | null>(null);
   const [previewVariant, setPreviewVariant] = useState<'template' | 'community'>('template');
   const [previewIsOwn, setPreviewIsOwn] = useState(false);
 
   // PreFlight drawer state (community agent → start session)
-  const [selectedPersona, setSelectedPersona] = useState<any>(null);
+  const [selectedPersona, setSelectedPersona] = useState<PreFlightPersona | null>(null);
 
   useEffect(() => {
     loadData();
@@ -59,7 +62,7 @@ export function CommunityPage() {
     }
   };
 
-  const handleUseTemplate = async (template: any) => {
+  const handleUseTemplate = async (template: PersonaTemplate) => {
     setCloning(template.key || template.name);
     try {
       const payload: Record<string, unknown> = {
@@ -70,7 +73,7 @@ export function CommunityPage() {
         focus_areas: template.focus_areas,
         voice: template.voice || 'Puck',
       };
-      if (template.scoring_criteria?.length > 0) payload.scoring_criteria = template.scoring_criteria;
+      if (template.scoring_criteria && template.scoring_criteria.length > 0) payload.scoring_criteria = template.scoring_criteria;
       if (template.behavior_rules?.length > 0) payload.behavior_rules = template.behavior_rules;
       if (template.opening_message) payload.opening_message = template.opening_message;
 
@@ -84,18 +87,18 @@ export function CommunityPage() {
     }
   };
 
-  const handleUseCommunityAgent = (agent: any) => {
+  const handleUseCommunityAgent = (agent: CommunityPersona) => {
     setPreviewAgent(null);
     setSelectedPersona({ ...agent, isCommunityAgent: true });
   };
 
-  const openTemplatePreview = (template: any) => {
+  const openTemplatePreview = (template: PersonaTemplate) => {
     setPreviewAgent(template);
     setPreviewVariant('template');
     setPreviewIsOwn(false);
   };
 
-  const openCommunityPreview = (agent: any, isOwn: boolean) => {
+  const openCommunityPreview = (agent: CommunityPersona, isOwn: boolean) => {
     setPreviewAgent(agent);
     setPreviewVariant('community');
     setPreviewIsOwn(isOwn);
@@ -258,10 +261,11 @@ export function CommunityPage() {
         agent={previewAgent}
         variant={previewVariant}
         onAction={() => {
+          if (!previewAgent) return;
           if (previewVariant === 'template') {
-            handleUseTemplate(previewAgent);
+            handleUseTemplate(previewAgent as PersonaTemplate);
           } else {
-            handleUseCommunityAgent(previewAgent);
+            handleUseCommunityAgent(previewAgent as CommunityPersona);
           }
         }}
         actionLoading={!!cloning}

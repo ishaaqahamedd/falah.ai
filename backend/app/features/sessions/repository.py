@@ -37,12 +37,12 @@ class SessionRepository:
         return session_record
 
     async def list_by_user(
-        self, user_id: UUID, persona_id: Optional[UUID] = None, limit: int = 20
+        self, user_id: UUID, persona_id: Optional[UUID] = None, offset: int = 0, limit: int = 20
     ) -> list[PitchSession]:
         query = select(PitchSession).where(PitchSession.user_id == user_id)
         if persona_id:
             query = query.where(PitchSession.persona_id == persona_id)
-        query = query.order_by(PitchSession.started_at.desc()).limit(limit)
+        query = query.order_by(PitchSession.started_at.desc()).offset(offset).limit(limit)
         result = await self.session.execute(query)
         return list(result.scalars().all())
 

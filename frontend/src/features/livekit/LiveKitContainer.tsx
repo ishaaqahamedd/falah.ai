@@ -1,11 +1,10 @@
 import React, { useState, useEffect, ReactNode } from 'react';
 import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
 import { getLiveKitToken } from './api';
-
-const LIVEKIT_URL = (window as any).__CONFIG__?.VITE_LIVEKIT_URL || import.meta.env.VITE_LIVEKIT_URL as string;
+import { LIVEKIT_URL } from '../../shared/lib/env';
 
 interface LiveKitContainerProps {
-  persona: { id: string; [key: string]: any };
+  persona: { id: string; name?: string; role?: string; [key: string]: unknown };
   transcript: string;
   onEnd: () => void;
   children: ReactNode;

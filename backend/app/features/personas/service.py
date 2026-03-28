@@ -10,8 +10,8 @@ class PersonaService:
     def __init__(self, repository: PersonaRepository):
         self.repository = repository
 
-    async def list_personas(self, user_id: UUID) -> list[Persona]:
-        return await self.repository.list_by_user(user_id)
+    async def list_personas(self, user_id: UUID, offset: int = 0, limit: int = 50) -> list[Persona]:
+        return await self.repository.list_by_user(user_id, offset, limit)
 
     async def create_persona(self, user_id: UUID, data: PersonaCreate) -> Persona:
         scoring = None

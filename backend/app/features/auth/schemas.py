@@ -11,6 +11,7 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: uuid.UUID
     is_active: bool
+    role: str = "user"
     onboarding_status: str = "pending"
     onboarding_step: str | None = None
 

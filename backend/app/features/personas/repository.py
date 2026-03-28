@@ -12,11 +12,13 @@ class PersonaRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def list_by_user(self, user_id: UUID) -> list[Persona]:
+    async def list_by_user(self, user_id: UUID, offset: int = 0, limit: int = 50) -> list[Persona]:
         result = await self.session.execute(
             select(Persona)
             .where(Persona.user_id == user_id)
             .order_by(Persona.created_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.scalars().all())
 

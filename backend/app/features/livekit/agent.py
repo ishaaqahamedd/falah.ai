@@ -31,7 +31,7 @@ class PersonaAgent(Agent):
         super().__init__(
             instructions=system_prompt,
             llm=google.realtime.RealtimeModel(
-                model="gemini-2.5-flash-native-audio-preview-12-2025",
+                model=settings.GEMINI_LIVE_MODEL,
                 voice=voice_id,
                 context_window_compression=types.ContextWindowCompressionConfig(
                     trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,

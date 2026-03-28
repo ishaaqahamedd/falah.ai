@@ -21,9 +21,11 @@ def get_persona_service(db: AsyncSession = Depends(get_db)) -> PersonaService:
 async def list_personas(
     current_user: Annotated[User, Depends(get_current_user)],
     service: PersonaService = Depends(get_persona_service),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
 ):
     """List all personas owned by the current user."""
-    return await service.list_personas(current_user.id)
+    return await service.list_personas(current_user.id, offset, limit)
 
 
 @router.get("/templates")

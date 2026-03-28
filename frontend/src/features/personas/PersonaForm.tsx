@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getPersonaTemplates } from './api';
-
-const VOICES = [
-  { id: 'Puck', name: 'Puck (Default)', desc: 'Friendly and professional' },
-  { id: 'Charon', name: 'Charon', desc: 'Deep and authoritative' },
-  { id: 'Kore', name: 'Kore', desc: 'Calm and steady' },
-  { id: 'Fenrir', name: 'Fenrir', desc: 'Energetic and bold' },
-  { id: 'Aoede', name: 'Aoede', desc: 'Warm and expressive' },
-  { id: 'Leda', name: 'Leda', desc: 'Clear and articulate' },
-  { id: 'Orus', name: 'Orus', desc: 'Neutral and direct' },
-  { id: 'Zephyr', name: 'Zephyr', desc: 'Breezy and fast-paced' }
-];
+import { VOICES } from '../../entities/personas/constants';
+import type { PersonaTemplate } from '../../types';
 
 interface ScoringCriterion {
   key: string;
@@ -41,7 +32,7 @@ function toKey(label: string): string {
 }
 
 export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps) {
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<PersonaTemplate[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData>({
     type: '',
@@ -59,7 +50,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
     getPersonaTemplates().then(setTemplates).catch(() => {});
   }, []);
 
-  const applyTemplate = (t: any) => {
+  const applyTemplate = (t: PersonaTemplate) => {
     setFormData({
       type: t.type || '',
       name: t.name || '',
@@ -154,7 +145,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
             <div className="space-y-3">
               <label className="text-sm font-semibold text-text-secondary">Start from a template</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {templates.map((t: any) => (
+                {templates.map((t) => (
                   <button
                     key={t.key}
                     type="button"

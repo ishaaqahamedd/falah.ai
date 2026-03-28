@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { googleAuth } from './api';
+import { GOOGLE_CLIENT_ID } from '../../shared/lib/env';
 
 interface GoogleSignInButtonProps {
   onSuccess: () => void;
@@ -10,7 +11,7 @@ export const GoogleSignInButton = ({ onSuccess, onError }: GoogleSignInButtonPro
   const buttonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const clientId = (window as any).__CONFIG__?.VITE_GOOGLE_CLIENT_ID || import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = GOOGLE_CLIENT_ID;
     if (!clientId || !window.google) return;
 
     window.google.accounts.id.initialize({

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserStore } from '../../entities/user/store';
+import { logout as apiLogout } from '../../features/auth/api';
 import { ThemeToggle } from '../../shared/ui/ThemeToggle';
 import { Avatar } from '../../shared/ui/Avatar';
 
 export function TopBar() {
-  const { user, logout } = useUserStore();
+  const { user } = useUserStore();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +45,7 @@ export function TopBar() {
                   <p className="text-xs text-text-muted truncate">{user.email}</p>
                 </div>
                 <button
-                  onClick={() => { setShowMenu(false); logout(); }}
+                  onClick={() => { setShowMenu(false); apiLogout(); }}
                   className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-surface-tertiary transition-colors"
                 >
                   Sign out
