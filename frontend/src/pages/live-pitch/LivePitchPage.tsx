@@ -232,6 +232,10 @@ const KEYFRAMES = `
     0%, 100% { transform: scaleY(0.35); }
     50%       { transform: scaleY(1); }
   }
+  @keyframes livecursor {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
   @keyframes voicering {
     0%   { transform: scale(1);    opacity: 0.6; }
     50%  { transform: scale(1.08); opacity: 0.25; }
@@ -264,6 +268,7 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
 
   // Transcript state
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
+  const [liveUserText, setLiveUserText] = useState<string | null>(null); // streaming user speech
   const [showTranscript, setShowTranscript] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -272,10 +277,23 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
   useDataChannel('', (msg) => {
     try {
       const data = JSON.parse(new TextDecoder().decode(msg.payload));
-      if (data.type === 'transcript_turn') {
-        const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.ts };
+      if (data.type === 'transcript_partial') {
+        // User is still speaking — update live row in-place
+        setLiveUserText(data.text);
+      } else if (data.type === 'transcript_final') {
+        // User finished speaking — commit to transcript list
+        setLiveUserText(null);
+        const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.timestamp };
         setTranscript(prev => [...prev, turn]);
         setUnreadCount(prev => prev + 1);
+      } else if (data.type === 'transcript_turn') {
+        // Agent turn (or fallback) — append immediately
+        const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.timestamp ?? data.ts };
+        setTranscript(prev => [...prev, turn]);
+        setUnreadCount(prev => prev + 1);
+      } else if (data.type === 'canvas_test') {
+        // PHASE 0 TEST — log to console to verify data channel + room access
+        console.log('[CANVAS PHASE-0 TEST]', data);
       }
     } catch { /* ignore malformed messages */ }
   });
@@ -509,13 +527,13 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
             Live Transcript
           </span>
           <span className="text-[10px] text-text-muted tabular-nums">
-            {transcript.length} {transcript.length === 1 ? 'turn' : 'turns'}
+            {transcript.length + (liveUserText ? 1 : 0)} {transcript.length + (liveUserText ? 1 : 0) === 1 ? 'turn' : 'turns'}
           </span>
         </div>
 
         {/* Turns */}
         <div className="overflow-y-auto px-5 py-3 space-y-3" style={{ maxHeight: '144px' }}>
-          {transcript.length === 0 ? (
+          {transcript.length === 0 && !liveUserText ? (
             <p className="text-xs text-text-muted italic">Waiting for conversation...</p>
           ) : (
             transcript.map((turn, i) => (
@@ -528,6 +546,16 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
                 <p className="text-sm text-text-primary leading-snug">{turn.text}</p>
               </div>
             ))
+          )}
+          {/* Live streaming row — shown while user is speaking */}
+          {liveUserText && (
+            <div className="flex gap-3 items-start opacity-80">
+              <span className="text-[11px] font-semibold w-7 flex-shrink-0 pt-0.5 text-emerald-400">You</span>
+              <p className="text-sm text-text-primary leading-snug">
+                {liveUserText}
+                <span style={{ animation: 'livecursor 0.9s ease-in-out infinite' }} className="inline-block ml-0.5 text-emerald-400">▌</span>
+              </p>
+            </div>
           )}
           <div ref={transcriptEndRef} />
         </div>
