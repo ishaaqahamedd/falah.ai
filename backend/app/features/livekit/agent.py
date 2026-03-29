@@ -20,9 +20,7 @@ from app.features.livekit.foundation_config import (
     FEATURE_FLAGS,
     VISION_CONFIG,
 )
-# --- PHASE 0 TEST — remove after validation ---
-from app.features.livekit.canvas_test import echo_canvas
-# --- END PHASE 0 TEST ---
+from app.features.livekit.canvas import render_canvas
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool
 from sqlalchemy.future import select
@@ -529,9 +527,10 @@ async def entrypoint(ctx: JobContext):
         opening_instruction=opening_instruction,
     )
 
-    # --- PHASE 0 TEST — attach echo_canvas to every session ---
-    session_tools = [echo_canvas]
-    # --- END PHASE 0 TEST ---
+    session_tools = []
+    if FEATURE_FLAGS["canvas_panel"]:
+        session_tools.append(render_canvas)
+        logger.info("[Agent] Canvas panel enabled")
 
     if grounding_enabled:
         session_tools.append(google.tools.GoogleSearch())
@@ -542,7 +541,7 @@ async def entrypoint(ctx: JobContext):
     session: AgentSession = AgentSession(
         llm=build_realtime_model(active_model, voice_id, model_settings),
         tools=session_tools,
-        userdata={"room": ctx.room, "canvas_mode": False},  # PHASE 0 TEST
+        userdata={"room": ctx.room, "canvas_mode": False},
         video_sampler=VoiceActivityVideoSampler(
             speaking_fps=VISION_CONFIG["speaking_fps"],
             silent_fps=VISION_CONFIG["silent_fps"],
@@ -565,7 +564,6 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
-    # --- PHASE 0 TEST — listen for canvas_mode toggle from frontend ---
     @ctx.room.on("data_received")
     def on_data_received(packet) -> None:
         try:
@@ -573,10 +571,9 @@ async def entrypoint(ctx: JobContext):
             if msg.get("type") == "canvas_mode":
                 enabled = bool(msg.get("enabled", False))
                 session.userdata["canvas_mode"] = enabled
-                logger.info(f"[Canvas-Test] Canvas mode toggled: {enabled}")
+                logger.info(f"[Canvas] Canvas mode: {enabled}")
         except Exception:
             pass
-    # --- END PHASE 0 TEST ---
 
     # 5. Route to the appropriate handler
     if is_onboarding:

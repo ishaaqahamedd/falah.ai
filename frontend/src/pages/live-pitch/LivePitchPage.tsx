@@ -13,6 +13,8 @@ import { Track } from 'livekit-client';
 import { getLiveKitToken } from '../../features/livekit/api';
 import { createSession } from '../../features/sessions/api';
 import { LIVEKIT_URL } from '../../shared/lib/env';
+import { CanvasPanel } from '../../widgets/canvas-panel';
+import type { CanvasArtifact } from '../../widgets/canvas-panel';
 
 interface Persona {
   id: string;
@@ -268,10 +270,17 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
 
   // Transcript state
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
-  const [liveUserText, setLiveUserText] = useState<string | null>(null); // streaming user speech
+  const [liveUserText, setLiveUserText] = useState<string | null>(null);
   const [showTranscript, setShowTranscript] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // Canvas state
+  const [canvasMode, setCanvasMode] = useState(false);
+  const [showCanvas, setShowCanvas] = useState(false);
+  const [artifacts, setArtifacts] = useState<CanvasArtifact[]>([]);
+  const [activeArtifact, setActiveArtifact] = useState(0);
+  const [newArtifact, setNewArtifact] = useState(false);
 
   // Receive real-time transcript turns from backend via LiveKit data channel
   useDataChannel('', (msg) => {
@@ -291,9 +300,21 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.timestamp ?? data.ts };
         setTranscript(prev => [...prev, turn]);
         setUnreadCount(prev => prev + 1);
-      } else if (data.type === 'canvas_test') {
-        // PHASE 0 TEST — log to console to verify data channel + room access
-        console.log('[CANVAS PHASE-0 TEST]', data);
+      } else if (data.type === 'canvas_artifact') {
+        const artifact: CanvasArtifact = {
+          id: crypto.randomUUID(),
+          artifact_type: data.artifact_type,
+          title: data.title,
+          content: data.content,
+          ts: data.ts,
+        };
+        setArtifacts(prev => {
+          const next = [...prev, artifact];
+          setActiveArtifact(next.length - 1);
+          return next;
+        });
+        setShowCanvas(true);
+        setNewArtifact(true);
       }
     } catch { /* ignore malformed messages */ }
   });
@@ -347,6 +368,17 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
 
   const toggleMic = () => {
     localParticipant.setMicrophoneEnabled(isMicMuted);
+  };
+
+  const toggleCanvas = () => {
+    const next = !canvasMode;
+    setCanvasMode(next);
+    setShowCanvas(next);
+    if (next) setNewArtifact(false);
+    localParticipant.publishData(
+      new TextEncoder().encode(JSON.stringify({ type: 'canvas_mode', enabled: next })),
+      { reliable: true }
+    );
   };
 
   const toggleScreenShare = () => {
@@ -511,6 +543,14 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         </div>
       </div>
 
+      {/* Canvas panel — slides in from the right */}
+      <CanvasPanel
+        artifacts={artifacts}
+        activeIndex={activeArtifact}
+        onTabChange={setActiveArtifact}
+        visible={showCanvas && canvasMode}
+      />
+
       {/* Live transcript panel — slides up above the bottom bar */}
       <div
         className={`absolute left-0 right-0 z-10 transition-all duration-300 ease-in-out overflow-hidden
@@ -618,6 +658,24 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
 
           <div className="w-px h-8 bg-border-primary/30 mx-0.5" />
 
+          {/* Canvas toggle */}
+          <button
+            onClick={toggleCanvas}
+            className={`relative cursor-pointer flex flex-col items-center justify-center gap-1 w-16 h-16 rounded-xl transition-all duration-200 active:scale-95 select-none ${
+              canvasMode
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                : 'text-text-primary hover:bg-surface-tertiary'
+            }`}
+          >
+            <CanvasButtonIcon className="w-5 h-5" />
+            <span className="text-[10px] font-medium opacity-60 leading-none">Canvas</span>
+            {newArtifact && !canvasMode && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-surface" />
+            )}
+          </button>
+
+          <div className="w-px h-8 bg-border-primary/30 mx-0.5" />
+
           {/* End */}
           <button
             onClick={onEnd}
@@ -699,6 +757,15 @@ function MonitorOffIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round"
         d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2zM3 3l18 18" />
+    </svg>
+  );
+}
+
+function CanvasButtonIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9h18M9 21V9" />
     </svg>
   );
 }

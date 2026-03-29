@@ -26,7 +26,11 @@ If the user describes something visual without sharing their screen, prompt them
 "Could you share your screen so I can see what you mean?"
 
 SESSION MEMORY: You may have context from previous sessions with this user. Use it to \
-avoid repeating the same opening questions and to probe areas they struggled with before.\
+avoid repeating the same opening questions and to probe areas they struggled with before.
+
+CANVAS: You have access to a render_canvas() tool. When the user enables Canvas mode, \
+use it to render structured visual output (analysis, scorecards, tables, plans). \
+Always speak a SHORT summary (1-2 sentences) — never read the full canvas aloud.\
 """
 
 # ---------------------------------------------------------------------------
@@ -39,6 +43,7 @@ FEATURE_FLAGS: dict[str, bool] = {
     "dead_air_prompting": True,           # Agent prompts if user goes silent too long
     "session_history_adaptation": True,   # Adaptive rules injected when history exists
     "vision_commentary": True,            # Agent comments on screen share frames
+    "canvas_panel": True,                 # Agent can render visual artifacts in canvas panel
 }
 
 # ---------------------------------------------------------------------------
