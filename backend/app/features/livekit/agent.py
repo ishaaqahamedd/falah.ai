@@ -104,8 +104,6 @@ def build_realtime_model(
     kwargs: dict = dict(
         model=model_id,
         voice=voice_id,
-        input_audio_transcription=None,  # omit from setup message — model rejects empty {} objects
-        output_audio_transcription=None,  # transcripts handled by TranscriptRecorder, not Gemini
     )
 
     # Preview models require v1alpha — the plugin defaults to v1beta which rejects them
