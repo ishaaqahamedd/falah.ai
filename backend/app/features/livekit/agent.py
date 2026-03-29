@@ -157,6 +157,15 @@ class PersonaAgent(Agent):
 class TranscriptRecorder:
     """Listens to AgentSession events and records user/agent conversation turns.
     Also broadcasts each turn in real-time to the frontend via LiveKit data channel.
+
+    Latency strategy:
+    - User speech: user_input_transcribed fires DURING speech with is_final flag.
+      Partial turns are broadcast as transcript_partial (update in-place on frontend).
+      Final turns are broadcast as transcript_final and saved to self.turns.
+    - Agent speech: speech_created fires when agent audio STARTS playing.
+      We extract the text immediately and broadcast as transcript_turn.
+    - conversation_item_added is kept only as a fallback for agent turns where
+      speech_created had no text (edge cases).
     """
 
     MAX_TURNS = 100
@@ -166,17 +175,70 @@ class TranscriptRecorder:
         self._room = room  # LiveKit room for real-time broadcast
         self.turns: list[dict] = []
         self._start_time = time.time()
+        self._agent_turn_sent = False  # dedup: skip _on_item_added if speech_created already fired
 
+        session.on("user_input_transcribed", self._on_user_transcript)
+        session.on("speech_created", self._on_speech_created)
         session.on("conversation_item_added", self._on_item_added)
 
+    def _broadcast(self, payload: bytes) -> None:
+        if self._room:
+            asyncio.ensure_future(
+                self._room.local_participant.publish_data(payload, reliable=True)
+            )
+
+    def _on_user_transcript(self, event) -> None:
+        """Stream user speech in real-time. Fires multiple times per utterance."""
+        if not event.transcript:
+            return
+        ts = round(time.time() - self._start_time, 2)
+        msg_type = "transcript_final" if event.is_final else "transcript_partial"
+        if event.is_final:
+            turn = {"role": "user", "text": event.transcript, "timestamp": ts}
+            self.turns.append(turn)
+            if len(self.turns) > self.MAX_TURNS:
+                self.turns = self.turns[-self.MAX_TURNS :]
+        self._broadcast(json.dumps({
+            "type": msg_type, "role": "user", "text": event.transcript, "timestamp": ts
+        }).encode("utf-8"))
+
+    def _on_speech_created(self, event) -> None:
+        """Capture agent text the moment audio starts playing."""
+        try:
+            for item in (event.speech_handle.chat_items or []):
+                if hasattr(item, "role") and item.role == "assistant":
+                    text = item.text_content
+                    if text:
+                        ts = round(time.time() - self._start_time, 2)
+                        turn = {"role": "agent", "text": text, "timestamp": ts}
+                        self.turns.append(turn)
+                        if len(self.turns) > self.MAX_TURNS:
+                            self.turns = self.turns[-self.MAX_TURNS :]
+                        self._agent_turn_sent = True
+                        self._broadcast(json.dumps({"type": "transcript_turn", **turn}).encode("utf-8"))
+                        break
+        except Exception:
+            pass  # fallback to _on_item_added below
+
     def _on_item_added(self, event) -> None:
-        """Capture final committed messages (user AND agent)."""
+        """Fallback: captures agent turns if speech_created had no text."""
         msg = event.item
         text = msg.text_content
         if not text:
             return
 
         role = "agent" if msg.role == "assistant" else "user"
+
+        # user turns are handled by _on_user_transcript
+        if role == "user":
+            return
+
+        # agent turn already broadcast by _on_speech_created
+        if role == "agent" and self._agent_turn_sent:
+            self._agent_turn_sent = False  # reset for next turn
+            return
+
+        # fallback: speech_created fired but had no text
         turn = {
             "role": role,
             "text": text,
@@ -185,13 +247,7 @@ class TranscriptRecorder:
         self.turns.append(turn)
         if len(self.turns) > self.MAX_TURNS:
             self.turns = self.turns[-self.MAX_TURNS :]
-
-        # Broadcast to frontend in real-time via LiveKit data channel
-        if self._room:
-            payload = json.dumps({"type": "transcript_turn", **turn}).encode("utf-8")
-            asyncio.ensure_future(
-                self._room.local_participant.publish_data(payload, reliable=True)
-            )
+        self._broadcast(json.dumps({"type": "transcript_turn", **turn}).encode("utf-8"))
 
     def get_transcript(self) -> list[dict]:
         return self.turns
