@@ -15,6 +15,11 @@ from app.core.config import settings
 from app.features.livekit.personas import get_persona_prompt
 from app.features.livekit.handlers.onboarding_handler import setup_onboarding
 from app.features.livekit.handlers.session_handler import setup_session
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import NullPool
+from sqlalchemy.future import select
+from app.features.superadmin.models import AIModelConfig
+from app.features.superadmin.model_registry import MODEL_REGISTRY, DEFAULT_MODEL_ID
 
 logger = logging.getLogger("persona-agent")
 
@@ -24,31 +29,112 @@ os.environ.setdefault("LIVEKIT_API_KEY", settings.LIVEKIT_API_KEY)
 os.environ.setdefault("LIVEKIT_API_SECRET", settings.LIVEKIT_API_SECRET)
 
 
+async def get_active_live_config() -> tuple[str, dict]:
+    """
+    Fetch the active model_id + settings from DB.
+    Validates the model_id against the registry — normalizes to DEFAULT if stale.
+    Falls back to settings defaults if DB is unavailable.
+
+    Uses NullPool so the agent worker's event loop never inherits pooled connections
+    from the FastAPI app's loop, avoiding asyncpg "attached to a different loop" errors.
+    """
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    engine = create_async_engine(db_url, poolclass=NullPool)
+    try:
+        SessionLocal = async_sessionmaker(
+            bind=engine, class_=AsyncSession, expire_on_commit=False
+        )
+        async with SessionLocal() as db:
+            result = await db.execute(
+                select(AIModelConfig).where(
+                    AIModelConfig.config_key == "live_agent_model"
+                )
+            )
+            config = result.scalar_one_or_none()
+            if config:
+                model_id = config.model_id
+                if model_id not in MODEL_REGISTRY:
+                    logger.warning(
+                        f"[Agent] DB model '{model_id}' not in registry — falling back to {DEFAULT_MODEL_ID}"
+                    )
+                    model_id = DEFAULT_MODEL_ID
+                return model_id, config.settings or {}
+    except Exception:
+        pass
+    finally:
+        await engine.dispose()
+
+    return settings.GEMINI_LIVE_MODEL, {"thinking_level": settings.THINKING_LEVEL}
+
+
+def build_realtime_model(
+    model_id: str, voice_id: str, model_settings: dict
+) -> google.realtime.RealtimeModel:
+    """
+    Build a RealtimeModel using the model registry spec.
+    Only passes flags the model actually supports — no unsupported kwargs sent to the API.
+    """
+    spec = MODEL_REGISTRY.get(model_id)
+    if spec is None:
+        logger.warning(
+            f"[Agent] Model '{model_id}' not in registry — using {DEFAULT_MODEL_ID}"
+        )
+        model_id = DEFAULT_MODEL_ID
+        spec = MODEL_REGISTRY[DEFAULT_MODEL_ID]
+    thinking_spec = spec.get("thinking", {})
+
+    if thinking_spec.get("type") == "level":
+        thinking_cfg = None
+    elif thinking_spec.get("type") == "budget":
+        budget = model_settings.get(
+            "thinking_budget", thinking_spec.get("default", 128)
+        )
+        thinking_cfg = types.ThinkingConfig(thinking_budget=budget)
+    else:
+        thinking_cfg = None
+
+    kwargs: dict = dict(
+        model=model_id,
+        voice=voice_id,
+        input_audio_transcription=None,  # omit from setup message — model rejects empty {} objects
+        output_audio_transcription=None,  # transcripts handled by TranscriptRecorder, not Gemini
+    )
+
+    # Preview models require v1alpha — the plugin defaults to v1beta which rejects them
+    if spec.get("api_version"):
+        kwargs["api_version"] = spec["api_version"]
+
+    if thinking_cfg is not None:
+        kwargs["thinking_config"] = thinking_cfg
+
+    # Only pass flags the model actually supports
+    if spec.get("affective_dialog"):
+        kwargs["enable_affective_dialog"] = True
+    if spec.get("proactivity"):
+        kwargs["proactivity"] = True
+    if spec.get("context_window_compression"):
+        kwargs["context_window_compression"] = types.ContextWindowCompressionConfig(
+            trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
+            sliding_window=types.SlidingWindow(
+                target_tokens=settings.CONTEXT_TARGET_TOKENS,
+            ),
+        )
+
+    return google.realtime.RealtimeModel(**kwargs)
+
+
 class PersonaAgent(Agent):
     """A Gemini-powered agent configured dynamically via persona config."""
 
     def __init__(
-        self, system_prompt: str, voice_id: str, opening_instruction: str | None = None
+        self,
+        system_prompt: str,
+        opening_instruction: str | None = None,
     ):
-        super().__init__(
-            instructions=system_prompt,
-            llm=google.realtime.RealtimeModel(
-                model=settings.GEMINI_LIVE_MODEL,
-                voice=voice_id,
-                context_window_compression=types.ContextWindowCompressionConfig(
-                    trigger_tokens=settings.CONTEXT_TRIGGER_TOKENS,
-                    sliding_window=types.SlidingWindow(
-                        target_tokens=settings.CONTEXT_TARGET_TOKENS,
-                    ),
-                ),
-                thinking_config=types.ThinkingConfig(
-                    thinking_budget=settings.THINKING_BUDGET,
-                ),
-                enable_affective_dialog=True,
-                proactivity=True,
-                session_resumption=types.SessionResumptionConfig(handle=None),
-            ),
-        )
+        super().__init__(instructions=system_prompt)
         self._opening_instruction = (
             opening_instruction
             or "Please greet the user and ask them to begin their presentation."
@@ -57,7 +143,7 @@ class PersonaAgent(Agent):
     async def on_enter(self):
         """Triggered when the agent connects and is ready to speak."""
         logger.info("[Agent] Triggering opening greeting.")
-        self.session.generate_reply(user_input=self._opening_instruction)
+        await self.session.generate_reply(user_input=self._opening_instruction)
 
 
 # ---------------------------------------------------------------------------
@@ -66,12 +152,15 @@ class PersonaAgent(Agent):
 
 
 class TranscriptRecorder:
-    """Listens to AgentSession events and records user/agent conversation turns."""
+    """Listens to AgentSession events and records user/agent conversation turns.
+    Also broadcasts each turn in real-time to the frontend via LiveKit data channel.
+    """
 
     MAX_TURNS = 100
 
-    def __init__(self, session: AgentSession):
+    def __init__(self, session: AgentSession, room=None):
         self.session = session
+        self._room = room  # LiveKit room for real-time broadcast
         self.turns: list[dict] = []
         self._start_time = time.time()
 
@@ -85,15 +174,21 @@ class TranscriptRecorder:
             return
 
         role = "agent" if msg.role == "assistant" else "user"
-        self.turns.append(
-            {
-                "role": role,
-                "text": text,
-                "timestamp": round(event.created_at - self._start_time, 2),
-            }
-        )
+        turn = {
+            "role": role,
+            "text": text,
+            "timestamp": round(event.created_at - self._start_time, 2),
+        }
+        self.turns.append(turn)
         if len(self.turns) > self.MAX_TURNS:
             self.turns = self.turns[-self.MAX_TURNS :]
+
+        # Broadcast to frontend in real-time via LiveKit data channel
+        if self._room:
+            payload = json.dumps({"type": "transcript_turn", **turn}).encode("utf-8")
+            asyncio.ensure_future(
+                self._room.local_participant.publish_data(payload, reliable=True)
+            )
 
     def get_transcript(self) -> list[dict]:
         return self.turns
@@ -133,18 +228,20 @@ def _build_dynamic_prompt(
 
     focus_label = FOCUS_LABELS.get(persona_type, "KEY FOCUS AREAS")
 
-    _MAX_BRIEFING = 2000
-    _MAX_CRM = 1000
     dossier_parts: list[str] = []
     if briefing_context:
-        truncated = briefing_context[:_MAX_BRIEFING]
-        suffix = "... [truncated]" if len(briefing_context) > _MAX_BRIEFING else ""
+        truncated = briefing_context[: settings.MAX_BRIEFING_CHARS]
+        suffix = (
+            "... [truncated]"
+            if len(briefing_context) > settings.MAX_BRIEFING_CHARS
+            else ""
+        )
         dossier_parts.append(
             f"--- AI-Generated Briefing (from uploaded docs) ---\n{truncated}{suffix}"
         )
     if crm_context:
-        truncated = crm_context[:_MAX_CRM]
-        suffix = "... [truncated]" if len(crm_context) > _MAX_CRM else ""
+        truncated = crm_context[: settings.MAX_CRM_CHARS]
+        suffix = "... [truncated]" if len(crm_context) > settings.MAX_CRM_CHARS else ""
         dossier_parts.append(f"--- Manual Notes from User ---\n{truncated}{suffix}")
 
     dossier = (
@@ -230,8 +327,6 @@ async def entrypoint(ctx: JobContext):
 
     logger.info(f"[Agent] Room '{ctx.room.name}' active. Connecting...")
 
-    await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
-
     # 1. Extract context from room metadata
     #    ctx.room.metadata can be stale if agent dispatch races room creation (e.g. local BE + deployed worker).
     #    Fallback: fetch metadata directly from LiveKit Room Service API.
@@ -280,6 +375,7 @@ async def entrypoint(ctx: JobContext):
     persona_config = meta.get("persona_config", None)
     briefing_context = meta.get("briefing_context", "")
     session_history = meta.get("session_history", None)
+    grounding_enabled = meta.get("grounding_enabled", False)
     is_onboarding = meta.get("mode") == "onboarding"
 
     logger.info(
@@ -304,21 +400,32 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"[Agent] Using HARDCODED persona: {persona_id} (voice={voice_id})")
 
     # 3. Initialize agent + session
+    active_model, model_settings = await get_active_live_config()
+    logger.info(
+        f"[Agent] Using Gemini model: {active_model} | settings: {model_settings}"
+    )
+
     agent = PersonaAgent(
         system_prompt=system_prompt,
-        voice_id=voice_id,
         opening_instruction=opening_instruction,
     )
 
-    session = AgentSession(
+    session_tools = []
+    if grounding_enabled:
+        session_tools.append(google.tools.GoogleSearch())
+        logger.info("[Agent] Google Search grounding enabled")
+
+    session: AgentSession = AgentSession(
+        llm=build_realtime_model(active_model, voice_id, model_settings),
+        tools=session_tools,
         video_sampler=VoiceActivityVideoSampler(
             speaking_fps=settings.VIDEO_SPEAKING_FPS,
             silent_fps=settings.VIDEO_SILENT_FPS,
-        )
+        ),
     )
 
-    # 4. Attach transcript recorder
-    recorder = TranscriptRecorder(session)
+    # 4. Attach transcript recorder (pass room for real-time broadcast)
+    recorder = TranscriptRecorder(session, room=ctx.room)
     start_time = time.time()
 
     logger.info("[Agent] Starting audio/vision session...")
@@ -330,6 +437,8 @@ async def entrypoint(ctx: JobContext):
             audio_input=True, audio_output=True, video_input=True
         ),
     )
+
+    await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
     # 5. Route to the appropriate handler
     if is_onboarding:

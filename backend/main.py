@@ -19,6 +19,7 @@ from app.features.personas.router import router as personas_router  # noqa: E402
 from app.features.context.router import router as context_router  # noqa: E402
 from app.features.sessions.router import router as sessions_router  # noqa: E402
 from app.features.onboarding.router import router as onboarding_router  # noqa: E402
+from app.features.superadmin.router import router as superadmin_router  # noqa: E402
 
 # Rate limiter — keyed by remote IP address
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
@@ -52,6 +53,7 @@ app.include_router(personas_router)
 app.include_router(context_router)
 app.include_router(sessions_router)
 app.include_router(onboarding_router)
+app.include_router(superadmin_router)
 
 
 @app.get("/")

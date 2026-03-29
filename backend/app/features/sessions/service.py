@@ -284,6 +284,20 @@ class SessionService:
 
         return session_record
 
+    async def auto_summarize_session(
+        self, session_record: PitchSession
+    ) -> PitchSession:
+        """Generate and persist ai_summary immediately after session save.
+        Called by the agent worker — does NOT generate scorecard (that remains frontend-triggered).
+        """
+        if not session_record.transcript:
+            session_record.ai_summary = "Session ended without meaningful dialogue."
+        else:
+            session_record.ai_summary = await generate_session_summary(
+                session_record.transcript, session_record.persona_snapshot
+            )
+        return await self.repository.update(session_record)
+
     async def _get_or_404(self, session_id: UUID, user_id: UUID) -> PitchSession:
         session_record = await self.repository.get_by_id_and_user(session_id, user_id)
         if not session_record:

@@ -23,6 +23,7 @@ class PersonaCreate(BaseModel):
     behavior_rules: Optional[list[str]] = None
     opening_message: Optional[str] = None
     is_public: bool = False
+    grounding_enabled: bool = False
 
 
 class PersonaUpdate(BaseModel):
@@ -36,6 +37,7 @@ class PersonaUpdate(BaseModel):
     behavior_rules: Optional[list[str]] = None
     opening_message: Optional[str] = None
     is_public: Optional[bool] = None
+    grounding_enabled: Optional[bool] = None
 
 
 class PersonaResponse(BaseModel):
@@ -51,6 +53,7 @@ class PersonaResponse(BaseModel):
     opening_message: Optional[str] = None
     is_public: bool
     use_count: int
+    grounding_enabled: bool
     created_at: datetime
     updated_at: datetime
 

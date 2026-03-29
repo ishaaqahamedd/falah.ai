@@ -28,6 +28,11 @@ class Persona(Base):
     behavior_rules = Column(JSONB, nullable=True)  # ["rule1", "rule2", ...]
     opening_message = Column(Text, nullable=True)  # custom opening instruction
 
+    # Capabilities
+    grounding_enabled = Column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+
     # Community sharing
     is_public = Column(
         Boolean, default=False, nullable=False, server_default="false", index=True

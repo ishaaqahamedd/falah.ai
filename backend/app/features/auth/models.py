@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 from app.db.database import Base
 
 # Valid roles for RBAC
-VALID_ROLES = ("user", "creator", "admin")
+VALID_ROLES = ("user", "creator", "admin", "superadmin")
 
 
 class TimestampMixin:

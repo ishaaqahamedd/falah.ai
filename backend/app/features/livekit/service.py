@@ -57,6 +57,9 @@ class LivekitService:
                     logger.info(
                         f"Injected cached briefing ({len(persona.cached_briefing)} chars) for: {persona.name}"
                     )
+                if persona.grounding_enabled:
+                    metadata["grounding_enabled"] = True
+                    logger.info(f"Google Search grounding enabled for: {persona.name}")
 
                 past_sessions = await self.session_repo.list_completed_for_persona(
                     persona_uuid, user_id, limit=3

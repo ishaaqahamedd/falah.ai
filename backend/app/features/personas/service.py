@@ -31,6 +31,7 @@ class PersonaService:
             scoring_criteria=scoring,
             behavior_rules=data.behavior_rules,
             opening_message=data.opening_message,
+            grounding_enabled=data.grounding_enabled,
         )
         return await self.repository.create(persona)
 

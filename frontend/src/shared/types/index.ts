@@ -23,6 +23,7 @@ export interface Persona {
   behavior_rules: string[];
   opening_message: string | null;
   is_public: boolean;
+  grounding_enabled: boolean;
   use_count: number;
 }
 

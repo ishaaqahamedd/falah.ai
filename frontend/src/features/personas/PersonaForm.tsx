@@ -19,6 +19,7 @@ interface PersonaFormData {
   scoring_criteria: ScoringCriterion[];
   behavior_rules: string[];
   opening_message: string;
+  grounding_enabled: boolean;
 }
 
 interface PersonaFormProps {
@@ -44,6 +45,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
     scoring_criteria: [],
     behavior_rules: [],
     opening_message: '',
+    grounding_enabled: false,
   });
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
       scoring_criteria: t.scoring_criteria || [],
       behavior_rules: t.behavior_rules || [],
       opening_message: t.opening_message || '',
+      grounding_enabled: false,
     });
     setShowAdvanced(true);
   };
@@ -74,6 +77,7 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
       personality: formData.personality,
       focus_areas: formData.focus_areas,
       voice: formData.voice,
+      grounding_enabled: formData.grounding_enabled,
     };
     if (formData.scoring_criteria.length > 0) {
       payload.scoring_criteria = formData.scoring_criteria;
@@ -246,6 +250,25 @@ export function PersonaForm({ onSubmit, onCancel, isLoading }: PersonaFormProps)
                 onChange={(e) => setFormData({...formData, focus_areas: e.target.value})}
                 className={inputClass + " resize-none"}
               />
+            </div>
+
+            {/* Google Search Grounding */}
+            <div
+              className="flex items-center justify-between p-4 rounded-xl border border-border-primary bg-surface/50 cursor-pointer select-none"
+              onClick={() => setFormData({ ...formData, grounding_enabled: !formData.grounding_enabled })}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-5 rounded-full transition-colors flex items-center ${formData.grounding_enabled ? 'bg-blue-600' : 'bg-surface-tertiary border border-border-primary'}`}>
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow transition-transform mx-0.5 ${formData.grounding_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">Google Search Grounding</p>
+                  <p className="text-xs text-text-muted">Agent searches the web in real-time for current facts</p>
+                </div>
+              </div>
+              {formData.grounding_enabled && (
+                <span className="text-xs font-medium text-blue-400 bg-blue-600/10 px-2 py-0.5 rounded-full">Active</span>
+              )}
             </div>
 
             {/* Advanced Section Toggle */}

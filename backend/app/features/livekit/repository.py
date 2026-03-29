@@ -81,6 +81,10 @@ class LivekitRepository:
                 duration_seconds=duration_seconds,
             )
             logger.info(f"[Agent] Session saved to DB: {session_record.id}")
+            await service.auto_summarize_session(session_record)
+            logger.info(
+                f"[Agent] ai_summary generated for session: {session_record.id}"
+            )
         except Exception as e:
             logger.error(f"[Agent] Failed to save session: {e}", exc_info=True)
             await self._session.rollback()
@@ -100,6 +104,10 @@ class LivekitRepository:
                 duration_seconds=duration_seconds,
             )
             logger.info(f"[Agent] Session updated in DB: {session_record.id}")
+            await service.auto_summarize_session(session_record)
+            logger.info(
+                f"[Agent] ai_summary generated for session: {session_record.id}"
+            )
         except Exception as e:
             logger.error(f"[Agent] Failed to update session: {e}", exc_info=True)
             await self._session.rollback()

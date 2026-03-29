@@ -6,7 +6,8 @@ import {
   useLocalParticipant,
   useParticipants,
   useTracks,
-  VideoTrack
+  VideoTrack,
+  useDataChannel,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { getLiveKitToken } from '../../features/livekit/api';
@@ -243,6 +244,14 @@ const KEYFRAMES = `
   }
 `;
 
+// ─── Transcript types ─────────────────────────────────────────────────────────
+
+interface TranscriptTurn {
+  role: 'agent' | 'user';
+  text: string;
+  ts: number;
+}
+
 // ─── Main Content ─────────────────────────────────────────────────────────────
 
 function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Persona }) {
@@ -251,7 +260,33 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [setupComplete, setSetupComplete] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(!localParticipant.isMicrophoneEnabled);
+  const isMicMuted = !localParticipant.isMicrophoneEnabled;
+
+  // Transcript state
+  const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+
+  // Receive real-time transcript turns from backend via LiveKit data channel
+  useDataChannel('', (msg) => {
+    try {
+      const data = JSON.parse(new TextDecoder().decode(msg.payload));
+      if (data.type === 'transcript_turn') {
+        const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.ts };
+        setTranscript(prev => [...prev, turn]);
+        setUnreadCount(prev => prev + 1);
+      }
+    } catch { /* ignore malformed messages */ }
+  });
+
+  // Auto-scroll + clear badge when panel is open
+  useEffect(() => {
+    if (showTranscript) {
+      setUnreadCount(0);
+      transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [transcript, showTranscript]);
 
   const remoteParticipants = participants.filter(p => !p.isLocal);
 
@@ -293,9 +328,7 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
   const isSharing = !!localScreenShare;
 
   const toggleMic = () => {
-    const next = !isMicMuted;
-    localParticipant.setMicrophoneEnabled(!next);
-    setIsMicMuted(next);
+    localParticipant.setMicrophoneEnabled(isMicMuted);
   };
 
   const toggleScreenShare = () => {
@@ -460,8 +493,48 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         </div>
       </div>
 
-      {/* Bottom control bar — all 3 in one pill */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center pb-6">
+      {/* Live transcript panel — slides up above the bottom bar */}
+      <div
+        className={`absolute left-0 right-0 z-10 transition-all duration-300 ease-in-out overflow-hidden
+          bg-surface-secondary/90 backdrop-blur-xl border-t border-border-primary/30`}
+        style={{
+          bottom: '88px',
+          maxHeight: showTranscript ? '192px' : '0px',
+          opacity: showTranscript ? 1 : 0,
+        }}
+      >
+        {/* Panel header */}
+        <div className="px-5 pt-3 pb-2 flex items-center justify-between border-b border-border-primary/20">
+          <span className="text-[10px] uppercase tracking-widest text-text-muted font-medium">
+            Live Transcript
+          </span>
+          <span className="text-[10px] text-text-muted tabular-nums">
+            {transcript.length} {transcript.length === 1 ? 'turn' : 'turns'}
+          </span>
+        </div>
+
+        {/* Turns */}
+        <div className="overflow-y-auto px-5 py-3 space-y-3" style={{ maxHeight: '144px' }}>
+          {transcript.length === 0 ? (
+            <p className="text-xs text-text-muted italic">Waiting for conversation...</p>
+          ) : (
+            transcript.map((turn, i) => (
+              <div key={i} className="flex gap-3 items-start">
+                <span className={`text-[11px] font-semibold w-7 flex-shrink-0 pt-0.5 ${
+                  turn.role === 'agent' ? 'text-blue-400' : 'text-emerald-400'
+                }`}>
+                  {turn.role === 'agent' ? 'AI' : 'You'}
+                </span>
+                <p className="text-sm text-text-primary leading-snug">{turn.text}</p>
+              </div>
+            ))
+          )}
+          <div ref={transcriptEndRef} />
+        </div>
+      </div>
+
+      {/* Bottom control bar — Mic | Share | Transcript | End */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center pb-5">
         <div className="flex items-center gap-1 bg-surface-secondary/80 backdrop-blur-xl border border-border-primary/30 rounded-2xl p-1.5 shadow-2xl">
 
           {/* Mic */}
@@ -498,7 +571,26 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
 
           <div className="w-px h-8 bg-border-primary/30 mx-0.5" />
 
-          {/* End — in same pill, separated by divider */}
+          {/* Transcript toggle */}
+          <button
+            onClick={() => setShowTranscript(prev => !prev)}
+            className={`relative cursor-pointer flex flex-col items-center justify-center gap-1 w-16 h-16 rounded-xl transition-all duration-200 active:scale-95 select-none ${
+              showTranscript
+                ? 'bg-violet-500/20 text-violet-400 border border-violet-500/40'
+                : 'text-text-primary hover:bg-surface-tertiary'
+            }`}
+          >
+            <ScrollTextIcon className="w-5 h-5" />
+            <span className="text-[10px] font-medium opacity-60 leading-none">Transcript</span>
+            {/* Unread badge */}
+            {unreadCount > 0 && !showTranscript && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-violet-500 ring-2 ring-surface" />
+            )}
+          </button>
+
+          <div className="w-px h-8 bg-border-primary/30 mx-0.5" />
+
+          {/* End */}
           <button
             onClick={onEnd}
             className="cursor-pointer flex flex-col items-center justify-center gap-1 w-16 h-16 rounded-xl bg-red-600 text-white hover:bg-red-500 transition-all duration-200 active:scale-95 select-none"
@@ -536,6 +628,16 @@ function ShareHint() {
 }
 
 // ─── Icons (inline SVG, strokeWidth=2, fill=none) ────────────────────────────
+
+function ScrollTextIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}
 
 function MicIcon({ className }: { className?: string }) {
   return (
