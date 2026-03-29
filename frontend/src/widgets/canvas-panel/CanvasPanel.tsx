@@ -209,22 +209,45 @@ export function CanvasPanel({
         <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
           {/* Generating shimmer */}
           {isGenerating ? (
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
+              {/* Pulsing top bar */}
+              <div style={{
+                height: '3px', borderRadius: '99px', marginBottom: '4px',
+                background: `linear-gradient(to right, ${activeColor}, transparent)`,
+                animation: 'canvasPulse 1.2s ease-in-out infinite',
+              }} />
               {generatingTitle && (
-                <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.05em' }}>
-                  Generating: <span style={{ color: 'rgba(255,255,255,0.5)' }}>{generatingTitle}</span>
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
+                    background: activeColor,
+                    boxShadow: `0 0 8px ${activeColor}`,
+                    animation: 'canvasPulse 1s ease-in-out infinite',
+                  }} />
+                  <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}>
+                    Generating <span style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>{generatingTitle}</span>
+                  </p>
+                </div>
               )}
-              {[60, 100, 75, 90, 55, 85].map((w, i) => (
+              {/* Title shimmer */}
+              <div style={{
+                height: '16px', width: '70%', borderRadius: '8px',
+                background: 'linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.05) 100%)',
+                backgroundSize: '200% 100%',
+                animation: 'canvasShimmer 1.3s ease-in-out infinite',
+              }} />
+              <div style={{ height: '1px', background: `${activeColor}30` }} />
+              {/* Body shimmer bars */}
+              {[100, 85, 95, 70, 90, 60, 80, 75].map((w, i) => (
                 <div
                   key={i}
                   style={{
-                    height: i === 0 ? '14px' : '10px',
+                    height: '11px',
                     width: `${w}%`,
                     borderRadius: '6px',
                     background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 100%)',
                     backgroundSize: '200% 100%',
-                    animation: `canvasShimmer 1.4s ease-in-out ${i * 0.1}s infinite`,
+                    animation: `canvasShimmer 1.3s ease-in-out ${i * 0.08}s infinite`,
                   }}
                 />
               ))}
@@ -232,43 +255,55 @@ export function CanvasPanel({
           ) : capped.length === 0 ? (
             /* Empty state */
             <div
-              className="flex flex-col items-center justify-center h-full gap-4 text-center px-6"
+              className="flex flex-col items-center justify-center h-full gap-5 text-center px-6"
               style={{
-                backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)',
-                backgroundSize: '18px 18px',
+                background: 'radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.07) 0%, transparent 65%)',
+                backgroundImage: 'radial-gradient(ellipse at 50% 40%, rgba(124,58,237,0.07) 0%, transparent 65%), radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
+                backgroundSize: '100% 100%, 18px 18px',
               }}
             >
-              <div style={{ position: 'relative' }}>
-                <div
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '14px',
-                    background: 'rgba(124,58,237,0.12)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    zIndex: 1,
-                  }}
-                >
-                  <CanvasIcon style={{ width: '22px', height: '22px', color: 'rgba(124,58,237,0.6)' }} />
+              <div style={{ position: 'relative', animation: 'canvasFadeIn 0.5s ease-out' }}>
+                {/* Outer pulse rings */}
+                <div style={{
+                  position: 'absolute', inset: '-16px', borderRadius: '30px',
+                  border: '1px solid rgba(124,58,237,0.12)',
+                  animation: 'canvasRing 2.4s ease-out 0.2s infinite',
+                }} />
+                <div style={{
+                  position: 'absolute', inset: '-8px', borderRadius: '22px',
+                  border: '1px solid rgba(124,58,237,0.2)',
+                  animation: 'canvasRing 2.4s ease-out infinite',
+                }} />
+                <div style={{
+                  width: '56px', height: '56px', borderRadius: '16px',
+                  background: 'linear-gradient(135deg, rgba(124,58,237,0.2), rgba(124,58,237,0.08))',
+                  border: '1px solid rgba(124,58,237,0.25)',
+                  boxShadow: '0 0 24px rgba(124,58,237,0.15)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  position: 'relative', zIndex: 1,
+                }}>
+                  <CanvasIcon style={{ width: '26px', height: '26px', color: 'rgba(167,139,250,0.8)' }} />
                 </div>
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: '-8px',
-                    borderRadius: '22px',
-                    border: '1px solid rgba(124,58,237,0.2)',
-                    animation: 'canvasRing 2s ease-out infinite',
-                  }}
-                />
               </div>
-              <div className="space-y-1">
-                <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>Canvas is ready.</p>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.28)', lineHeight: 1.6 }}>
-                  Ask for an analysis, comparison,<br />scorecard, or summary.
+              <div style={{ animation: 'canvasFadeIn 0.6s ease-out 0.15s both' }}>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginBottom: '6px' }}>
+                  Canvas is ready.
                 </p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.7 }}>
+                  Ask for an analysis, comparison,<br />scorecard, or summary —<br />it will appear here instantly.
+                </p>
+              </div>
+              {/* Hint chips */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', animation: 'canvasFadeIn 0.6s ease-out 0.3s both' }}>
+                {['Scorecard', 'Summary', 'Compare', 'Action plan'].map(hint => (
+                  <span key={hint} style={{
+                    fontSize: '10px', padding: '3px 10px', borderRadius: '999px',
+                    background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)',
+                    color: 'rgba(167,139,250,0.6)', fontWeight: 500,
+                  }}>
+                    {hint}
+                  </span>
+                ))}
               </div>
             </div>
           ) : active ? (

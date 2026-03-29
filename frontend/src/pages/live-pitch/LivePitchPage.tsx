@@ -483,8 +483,14 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         </div>
       </div>
 
-      {/* Main stage */}
-      <div className="flex-1 flex overflow-hidden pt-[57px] pb-28">
+      {/* Main stage — shifts right when canvas is open */}
+      <div
+        className="flex-1 flex overflow-hidden pt-[57px] pb-28"
+        style={{
+          paddingLeft: showCanvas && canvasMode ? panelWidth : 0,
+          transition: 'padding-left 0.3s ease',
+        }}
+      >
 
         {/* Screen share area */}
         <div
@@ -598,9 +604,10 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
 
       {/* Live transcript panel — slides up above the bottom bar */}
       <div
-        className={`absolute left-0 right-0 z-10 transition-all duration-300 ease-in-out overflow-hidden
+        className={`absolute right-0 z-10 transition-all duration-300 ease-in-out overflow-hidden
           bg-surface-secondary/90 backdrop-blur-xl border-t border-border-primary/30`}
         style={{
+          left: showCanvas && canvasMode ? panelWidth : 0,
           bottom: '88px',
           maxHeight: showTranscript ? '192px' : '0px',
           opacity: showTranscript ? 1 : 0,
@@ -647,7 +654,13 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
       </div>
 
       {/* Bottom control bar — Mic | Share | Transcript | End */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center pb-5">
+      <div
+        className="absolute bottom-0 right-0 z-10 flex items-center justify-center pb-5"
+        style={{
+          left: showCanvas && canvasMode ? panelWidth : 0,
+          transition: 'left 0.3s ease',
+        }}
+      >
         <div className="flex items-center gap-1 bg-surface-secondary/80 backdrop-blur-xl border border-border-primary/30 rounded-2xl p-1.5 shadow-2xl">
 
           {/* Mic */}
