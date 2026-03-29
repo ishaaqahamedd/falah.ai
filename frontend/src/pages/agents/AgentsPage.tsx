@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getPersonas, createPersona, deletePersona, updatePersona } from '../../features/personas/api';
 import { PersonaForm } from '../../features/personas/PersonaForm';
-import { PERSONA_OPTIONS } from '../../entities/personas/constants';
 import { PlusIcon, TrashIcon, GlobeIcon, LockIcon } from '../../shared/ui/Icons';
 import type { Persona } from '@shared/types';
 
 export function AgentsPage() {
   const navigate = useNavigate();
+  const [systemPersonas, setSystemPersonas] = useState<Persona[]>([]);
   const [customPersonas, setCustomPersonas] = useState<Persona[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [isFormLoading, setIsFormLoading] = useState(false);
@@ -20,7 +20,8 @@ export function AgentsPage() {
   const fetchPersonas = async () => {
     try {
       const data = await getPersonas();
-      setCustomPersonas(data);
+      setSystemPersonas(data.filter((p) => p.is_system));
+      setCustomPersonas(data.filter((p) => !p.is_system));
     } catch (e) {
       console.error('Failed to fetch personas:', e);
     }
@@ -45,8 +46,8 @@ export function AgentsPage() {
     try {
       await deletePersona(id);
       setCustomPersonas((prev) => prev.filter((p) => p.id !== id));
-    } catch (e) {
-      console.error('Failed to delete persona:', e);
+    } catch {
+      console.error('Failed to delete persona');
     }
   };
 
@@ -87,27 +88,29 @@ export function AgentsPage() {
       </div>
 
       {/* Starter Agents */}
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Starter Agents</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {PERSONA_OPTIONS.map((p) => (
-            <Link
-              key={p.id}
-              to={`/agents/${p.id}`}
-              className="group bg-surface-secondary border border-border-primary rounded-xl p-5 hover:border-blue-500 transition-all"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-text-primary group-hover:text-blue-500 transition-colors">{p.name}</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-tertiary text-text-muted uppercase tracking-wider">
-                  Starter
-                </span>
-              </div>
-              <p className="text-sm text-blue-500 mb-3">{p.role}</p>
-              <p className="text-xs text-text-muted line-clamp-2">{p.history}</p>
-            </Link>
-          ))}
+      {systemPersonas.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Starter Agents</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {systemPersonas.map((p) => (
+              <Link
+                key={p.id}
+                to={`/agents/${p.id}`}
+                className="group bg-surface-secondary border border-border-primary rounded-xl p-5 hover:border-blue-500 transition-all"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-text-primary group-hover:text-blue-500 transition-colors">{p.name}</h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-tertiary text-text-muted uppercase tracking-wider">
+                    Starter
+                  </span>
+                </div>
+                <p className="text-sm text-blue-500 mb-3">{p.role}</p>
+                <p className="text-xs text-text-muted line-clamp-2">{p.focus_areas}</p>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Custom Agents */}
       <div className="space-y-3">

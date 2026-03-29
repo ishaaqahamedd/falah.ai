@@ -54,6 +54,7 @@ class PersonaResponse(BaseModel):
     is_public: bool
     use_count: int
     grounding_enabled: bool
+    is_system: bool = False
     created_at: datetime
     updated_at: datetime
 

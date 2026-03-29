@@ -12,7 +12,7 @@ export interface ScoringCriterion {
 
 export interface Persona {
   id: string;
-  user_id: string;
+  user_id: string | null;
   type: string;
   name: string;
   role: string;
@@ -24,6 +24,7 @@ export interface Persona {
   opening_message: string | null;
   is_public: boolean;
   grounding_enabled: boolean;
+  is_system: boolean;
   use_count: number;
 }
 

@@ -47,12 +47,22 @@ class PersonaService:
         self, persona_id: UUID, user_id: UUID, data: PersonaUpdate
     ) -> Persona:
         persona = await self.get_persona(persona_id, user_id)
+        if persona.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="System agents cannot be edited.",
+            )
         return await self.repository.update(
             persona, data.model_dump(exclude_unset=True)
         )
 
     async def delete_persona(self, persona_id: UUID, user_id: UUID) -> None:
         persona = await self.get_persona(persona_id, user_id)
+        if persona.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="System agents cannot be deleted.",
+            )
         await self.repository.delete(persona)
 
     async def list_community_personas(

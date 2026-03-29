@@ -17,8 +17,8 @@ class PersonaRepository:
     ) -> list[Persona]:
         result = await self.session.execute(
             select(Persona)
-            .where(Persona.user_id == user_id)
-            .order_by(Persona.created_at.desc())
+            .where(or_(Persona.user_id == user_id, Persona.is_system.is_(True)))
+            .order_by(Persona.is_system.desc(), Persona.created_at.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -28,7 +28,10 @@ class PersonaRepository:
         self, persona_id: UUID, user_id: UUID
     ) -> Optional[Persona]:
         result = await self.session.execute(
-            select(Persona).where(Persona.id == persona_id, Persona.user_id == user_id)
+            select(Persona).where(
+                Persona.id == persona_id,
+                or_(Persona.user_id == user_id, Persona.is_system.is_(True)),
+            )
         )
         return result.scalar_one_or_none()
 

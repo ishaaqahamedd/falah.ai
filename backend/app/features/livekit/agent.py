@@ -15,6 +15,11 @@ from app.core.config import settings
 from app.features.livekit.personas import get_persona_prompt
 from app.features.livekit.handlers.onboarding_handler import setup_onboarding
 from app.features.livekit.handlers.session_handler import setup_session
+from app.features.livekit.foundation_config import (
+    GLOBAL_PROMPT_ADDENDUM,
+    FEATURE_FLAGS,
+    VISION_CONFIG,
+)
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool
 from sqlalchemy.future import select
@@ -137,7 +142,7 @@ class PersonaAgent(Agent):
         super().__init__(instructions=system_prompt)
         self._opening_instruction = (
             opening_instruction
-            or "Please greet the user and ask them to begin their presentation."
+            or "Please greet the user warmly and begin the session."
         )
 
     async def on_enter(self):
@@ -203,14 +208,54 @@ FOCUS_LABELS = {
     "sales_client": "TOP CONCERNS",
 }
 
-DEFAULT_BEHAVIOR_RULES = [
-    'HIGHLY CONVERSATIONAL — Do not just fire off lists of questions. React naturally with "Ah, I see", "That makes sense", or "Wait, let me stop you there."',
-    'PROACTIVE DURING DEAD AIR — If the user goes silent or pauses for too long, jump in! Say something like "Take your time," or "Should we move on?" or prompt them on a previous point.',
-    "VISION AWARE — You receive live frames from the user's screen share. When slides are visible, ALWAYS comment on them. Ask about specific numbers, charts, or claims you can see on the screen.",
-    "Be SHORT — Maximum 2-3 sentences per response. No monologues. Let the user speak.",
-    "REALISTIC BUT ENCOURAGING — Push back on vague claims, but appreciate good metrics when you hear/see them.",
-    "USE YOUR DOSSIER — If you have intelligence about this person's past concerns, objections, or interests, naturally weave them into the conversation.",
-]
+DEFAULT_BEHAVIOR_RULES: dict[str, list[str]] = {
+    "investor": [
+        'HIGHLY CONVERSATIONAL — React naturally. Use "Ah I see", "That makes sense", "Wait, let me stop you there."',
+        "VISION AWARE — Comment on visible slides, charts, and numbers on screen. Ask about specific claims you can see.",
+        "Be SHORT — Maximum 2-3 sentences per response. No monologues. Let the user speak.",
+        "PROBE METRICS — Push back on vague claims. Ask for ARR, growth rate, CAC, LTV, gross margin.",
+        "REALISTIC BUT ENCOURAGING — Appreciate strong metrics when you hear or see them.",
+        "USE YOUR DOSSIER — If you have intelligence about this person's past concerns or interests, weave them in naturally.",
+    ],
+    "sales_client": [
+        'HIGHLY CONVERSATIONAL — React naturally to what the user says.',
+        "VISION AWARE — Comment on product demos, UI walkthroughs, and diagrams you can see on screen.",
+        "Be SHORT — Maximum 2-3 sentences per response.",
+        "PROBE TECHNICAL CONCERNS — Ask about integration complexity, data privacy, SLA guarantees, and compliance.",
+        "RISK-AWARE — Raise realistic procurement objections: vendor risk, switching cost, POC requirements.",
+    ],
+    "interview": [
+        'HIGHLY CONVERSATIONAL — React naturally and warmly to the candidate\'s answers.',
+        "Be SHORT — Ask one question at a time. Let the candidate speak.",
+        "STRUCTURED — Guide toward STAR format (Situation, Task, Action, Result) when answers are vague.",
+        "ENCOURAGING — Validate strong answers. Redirect weak answers constructively, not harshly.",
+        "PROBE DEPTH — Ask follow-ups: 'What specifically did you do?', 'What was the outcome?'",
+    ],
+    "onboarding": [
+        "WARM AND PATIENT — This may be the user's first experience. Be welcoming, not rushed.",
+        "Be SHORT — One step at a time. Confirm understanding before moving on.",
+        "ENCOURAGING — Celebrate small wins and progress.",
+        "ADAPTIVE — If the user is stuck, offer a different explanation or example.",
+    ],
+    "training": [
+        "KNOWLEDGEABLE — Teach by showing, not just telling. Use real examples.",
+        "Be SHORT — One concept at a time. Ask comprehension questions after explaining.",
+        "ADAPTIVE — Adjust pace based on the learner's responses.",
+        "STRUCTURED — Summarize key takeaways at the end of each section.",
+    ],
+    "support": [
+        "CALM AND EMPATHETIC — Never blame the user. Stay solution-oriented.",
+        "Be SHORT — Walk through solutions step-by-step, confirming each step works.",
+        "STRUCTURED — Understand the issue fully before jumping to solutions.",
+        "ESCALATE GRACEFULLY — If out of scope, explain why and describe the escalation path.",
+    ],
+    "_default": [
+        'HIGHLY CONVERSATIONAL — React naturally. Don\'t just fire off lists of questions.',
+        "Be SHORT — Maximum 2-3 sentences per response.",
+        "PROACTIVE DURING DEAD AIR — If the user goes silent, gently prompt them.",
+        "ADAPTIVE — Match the user's energy and pace throughout the conversation.",
+    ],
+}
 
 
 def _build_dynamic_prompt(
@@ -280,13 +325,28 @@ ADAPTIVE BEHAVIOR RULES:
             f"{i + 1}. {rule}" for i, rule in enumerate(custom_rules)
         )
     else:
+        persona_type = config.get("type", "_default")
+        fallback_rules = DEFAULT_BEHAVIOR_RULES.get(
+            persona_type, DEFAULT_BEHAVIOR_RULES["_default"]
+        )
         rules_text = "\n".join(
-            f"{i + 1}. {rule}" for i, rule in enumerate(DEFAULT_BEHAVIOR_RULES)
+            f"{i + 1}. {rule}" for i, rule in enumerate(fallback_rules)
         )
 
+    DEFAULT_OPENING: dict[str, str] = {
+        "investor": "Open with a warm but efficient greeting. You're busy — ask them to get started with their pitch.",
+        "sales_client": "Greet them professionally. Mention you have limited time and ask them to show you the product.",
+        "interview": "Welcome them warmly to the practice session. Ask what role they're interviewing for so you can tailor your questions.",
+        "onboarding": "Welcome them warmly to the platform. Ask what they'd like to set up or explore first today.",
+        "training": "Greet them and ask which feature or workflow they'd like to learn about today.",
+        "knowledge_transfer": "Greet them and explain you're here to help ensure a smooth knowledge transfer. Ask where they'd like to start.",
+        "support": "Greet them warmly and ask how you can help today.",
+        "_default": "Greet the user warmly and ask how you can help them today.",
+    }
+    persona_type = config.get("type", "_default")
     opening = (
         config.get("opening_message")
-        or "Open with a warm, casual greeting and ask them to begin their presentation."
+        or DEFAULT_OPENING.get(persona_type, DEFAULT_OPENING["_default"])
     )
 
     return f"""You are {name}, {role}.
@@ -304,6 +364,8 @@ BEHAVIOR RULES:
 {rules_text}
 
 {opening}
+
+{GLOBAL_PROMPT_ADDENDUM}
 """
 
 
@@ -414,13 +476,15 @@ async def entrypoint(ctx: JobContext):
     if grounding_enabled:
         session_tools.append(google.tools.GoogleSearch())
         logger.info("[Agent] Google Search grounding enabled")
+        if FEATURE_FLAGS["citations_panel"]:
+            logger.info("[Agent] Citations panel enabled — grounding metadata will be broadcast")
 
     session: AgentSession = AgentSession(
         llm=build_realtime_model(active_model, voice_id, model_settings),
         tools=session_tools,
         video_sampler=VoiceActivityVideoSampler(
-            speaking_fps=settings.VIDEO_SPEAKING_FPS,
-            silent_fps=settings.VIDEO_SILENT_FPS,
+            speaking_fps=VISION_CONFIG["speaking_fps"],
+            silent_fps=VISION_CONFIG["silent_fps"],
         ),
     )
 

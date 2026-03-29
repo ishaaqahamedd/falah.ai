@@ -12,8 +12,13 @@ class Persona(Base):
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,   # NULL for system personas
         index=True,
+    )
+
+    # System personas are seeded by migrations and are read-only to all users
+    is_system = Column(
+        Boolean, default=False, nullable=False, server_default="false"
     )
 
     type = Column(String(100), nullable=False, default="investor")

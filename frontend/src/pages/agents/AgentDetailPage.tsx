@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPersona, updatePersona } from '../../features/personas/api';
-import { PERSONA_OPTIONS, VOICES } from '../../entities/personas/constants';
+import { VOICES } from '../../entities/personas/constants';
 import { ChevronLeftIcon, PlayIcon, GlobeIcon, LockIcon } from '../../shared/ui/Icons';
 import { PreFlightDrawer } from '../../widgets/preflight-drawer/PreFlightDrawer';
 
@@ -24,6 +24,7 @@ interface AgentDetail {
   opening_message?: string | null;
   is_public?: boolean;
   grounding_enabled?: boolean;
+  is_system?: boolean;
   use_count?: number;
   history?: string;
 }
@@ -51,15 +52,11 @@ export function AgentDetailPage() {
   const loadPersona = async () => {
     setLoading(true);
     try {
-      const preset = PERSONA_OPTIONS.find((p) => p.id === id);
-      if (preset) {
-        setPersona(preset);
-        setIsPreset(true);
-      } else if (id) {
+      if (id) {
         const data = await getPersona(id);
         setPersona(data);
         setEditData(data);
-        setIsPreset(false);
+        setIsPreset(data.is_system ?? false);
       }
     } catch (e) {
       console.error('Failed to load persona:', e);
