@@ -46,6 +46,9 @@ async def setup_session(
             f"[Agent] Captured {len(transcript)} turns over {duration}s. Saving..."
         )
 
+        artifacts = session.userdata.get("artifacts", [])
+        logger.info(f"[Agent] Canvas artifacts captured: {len(artifacts)}")
+
         if len(transcript) < 1:
             logger.warning("[Agent] Skipping save: no transcript turns captured")
         elif session_id:
@@ -54,6 +57,7 @@ async def setup_session(
                     session_id=session_id,
                     transcript=transcript,
                     duration_seconds=duration,
+                    artifacts=artifacts,
                 )
         elif user_id:
             persona_snapshot = persona_config or {"persona_id": persona_id}
@@ -64,6 +68,7 @@ async def setup_session(
                     persona_snapshot=persona_snapshot,
                     transcript=transcript,
                     duration_seconds=duration,
+                    artifacts=artifacts,
                 )
         else:
             logger.warning("[Agent] Skipping save: no session_id or user_id")

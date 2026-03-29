@@ -49,6 +49,7 @@ class SessionResponse(BaseModel):
     status: SessionStatus
     scorecard: Optional[dict] = None
     ai_summary: Optional[str] = None
+    artifacts: Optional[list[dict]] = None
     started_at: datetime
     ended_at: Optional[datetime] = None
 

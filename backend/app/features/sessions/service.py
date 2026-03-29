@@ -234,6 +234,7 @@ class SessionService:
         persona_snapshot: dict | None,
         transcript: list[dict],
         duration_seconds: int,
+        artifacts: list[dict] | None = None,
     ) -> PitchSession:
         """Called by the livekit agent worker. Creates a completed session and auto-scores."""
         persona_uuid = None
@@ -252,6 +253,7 @@ class SessionService:
             duration_seconds=duration_seconds,
             status=SessionStatus.COMPLETED,
             ended_at=datetime.now(timezone.utc),
+            artifacts=artifacts or [],
         )
         session_record = await self.repository.create(session_record)
         logger.info(f"Session created: {session_record.id} (scoring deferred to API)")
@@ -263,6 +265,7 @@ class SessionService:
         session_id: str,
         transcript: list[dict],
         duration_seconds: int,
+        artifacts: list[dict] | None = None,
     ) -> PitchSession:
         """Called by agent worker. Updates ACTIVE session to COMPLETED.
 
@@ -279,6 +282,7 @@ class SessionService:
         session_record.duration_seconds = duration_seconds
         session_record.status = SessionStatus.COMPLETED
         session_record.ended_at = datetime.now(timezone.utc)
+        session_record.artifacts = artifacts or []
         session_record = await self.repository.update(session_record)
         logger.info(f"Session {session_id} marked COMPLETED (scoring deferred to API)")
 

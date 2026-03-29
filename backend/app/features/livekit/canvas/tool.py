@@ -80,6 +80,11 @@ async def render_canvas(
         logger.warning("[Canvas] No room in userdata — artifact not broadcast")
         return spoken_summary
 
+    # Store artifact in userdata for session persistence (before broadcast in case of error)
+    ts = time.time()
+    artifact_record = {"artifact_type": artifact_type, "title": title, "content": content, "ts": ts}
+    context.userdata.setdefault("artifacts", []).append(artifact_record)
+
     # Signal frontend to show shimmer skeleton immediately
     generating_payload = json.dumps({"type": "canvas_generating", "title": title}).encode("utf-8")
     await room.local_participant.publish_data(generating_payload, reliable=True)
@@ -90,7 +95,7 @@ async def render_canvas(
         "artifact_type": artifact_type,
         "title": title,
         "content": content,
-        "ts": time.time(),
+        "ts": ts,
     }).encode("utf-8")
 
     await room.local_participant.publish_data(payload, reliable=True)

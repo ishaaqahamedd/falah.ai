@@ -4,8 +4,22 @@ import { getSession, getSessions, triggerScoring } from '../../features/sessions
 import { SCORE_DIMENSIONS } from '../../entities/sessions/constants';
 import { getScoreColor, formatTimestamp } from '../../shared/lib/formatters';
 import { ChevronLeftIcon } from '../../shared/ui/Icons';
-import type { Session, ScoringCriterion, TranscriptTurn } from '@shared/types';
+import type { Session, ScoringCriterion, TranscriptTurn, CanvasArtifactRecord } from '@shared/types';
 import { SESSION_POLL_INTERVAL_MS } from '../../shared/lib/constants';
+import { Modal } from '../../shared/ui/Modal';
+import { ArtifactRenderer } from '../../widgets/canvas-panel/ArtifactRenderer';
+
+const ARTIFACT_TYPE_COLORS: Record<string, { border: string; badge: string; text: string }> = {
+  markdown:    { border: '#7c3aed', badge: 'rgba(124,58,237,0.15)', text: '#a78bfa' },
+  bullet_list: { border: '#0891b2', badge: 'rgba(8,145,178,0.15)',  text: '#67e8f9' },
+  table:       { border: '#2563eb', badge: 'rgba(37,99,235,0.15)',  text: '#93c5fd' },
+  scorecard:   { border: '#d97706', badge: 'rgba(217,119,6,0.15)',  text: '#fcd34d' },
+};
+
+const ARTIFACT_TYPE_LABELS: Record<string, string> = {
+  markdown: 'MARKDOWN', bullet_list: 'BULLET LIST',
+  table: 'TABLE', scorecard: 'SCORECARD',
+};
 
 export function SessionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +28,7 @@ export function SessionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [scoring, setScoring] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [openArtifact, setOpenArtifact] = useState<CanvasArtifactRecord | null>(null);
 
   useEffect(() => {
     loadSession();
@@ -231,6 +246,57 @@ export function SessionDetailPage() {
           )}
         </div>
       ) : null}
+
+      {/* Canvas Artifacts */}
+      {session.artifacts && session.artifacts.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-text-primary">Canvas Artifacts</h3>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-surface-tertiary text-text-muted">
+              {session.artifacts.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {session.artifacts.map((artifact, i) => {
+              const colors = ARTIFACT_TYPE_COLORS[artifact.artifact_type] ?? ARTIFACT_TYPE_COLORS.markdown;
+              const label = ARTIFACT_TYPE_LABELS[artifact.artifact_type] ?? artifact.artifact_type.toUpperCase();
+              return (
+                <button
+                  key={i}
+                  onClick={() => setOpenArtifact(artifact)}
+                  className="text-left rounded-xl border border-border-primary bg-surface-secondary hover:bg-surface-tertiary transition-colors p-4 flex items-start gap-3 group"
+                  style={{ borderLeftWidth: '3px', borderLeftColor: colors.border }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <span
+                      className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-2"
+                      style={{ background: colors.badge, color: colors.text }}
+                    >
+                      {label}
+                    </span>
+                    <p className="text-sm font-semibold text-text-primary leading-snug line-clamp-2">{artifact.title}</p>
+                  </div>
+                  <svg className="w-4 h-4 text-text-muted group-hover:text-text-secondary flex-shrink-0 mt-1 transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Artifact detail modal */}
+      <Modal
+        isOpen={!!openArtifact}
+        onClose={() => setOpenArtifact(null)}
+        title={openArtifact?.title ?? ''}
+        maxWidth="max-w-3xl"
+      >
+        {openArtifact && (
+          <ArtifactRenderer artifact={{ id: openArtifact.title, ...openArtifact }} />
+        )}
+      </Modal>
 
       {/* Transcript */}
       {session.transcript && session.transcript.length > 0 && (
