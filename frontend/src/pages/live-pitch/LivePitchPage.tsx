@@ -291,6 +291,9 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.timestamp ?? data.ts };
         setTranscript(prev => [...prev, turn]);
         setUnreadCount(prev => prev + 1);
+      } else if (data.type === 'canvas_test') {
+        // PHASE 0 TEST — log to console to verify data channel + room access
+        console.log('[CANVAS PHASE-0 TEST]', data);
       }
     } catch { /* ignore malformed messages */ }
   });

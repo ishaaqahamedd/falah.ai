@@ -20,6 +20,9 @@ from app.features.livekit.foundation_config import (
     FEATURE_FLAGS,
     VISION_CONFIG,
 )
+# --- PHASE 0 TEST — remove after validation ---
+from app.features.livekit.canvas_test import echo_canvas
+# --- END PHASE 0 TEST ---
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import NullPool
 from sqlalchemy.future import select
@@ -526,7 +529,10 @@ async def entrypoint(ctx: JobContext):
         opening_instruction=opening_instruction,
     )
 
-    session_tools = []
+    # --- PHASE 0 TEST — attach echo_canvas to every session ---
+    session_tools = [echo_canvas]
+    # --- END PHASE 0 TEST ---
+
     if grounding_enabled:
         session_tools.append(google.tools.GoogleSearch())
         logger.info("[Agent] Google Search grounding enabled")
@@ -536,6 +542,7 @@ async def entrypoint(ctx: JobContext):
     session: AgentSession = AgentSession(
         llm=build_realtime_model(active_model, voice_id, model_settings),
         tools=session_tools,
+        userdata={"room": ctx.room, "canvas_mode": False},  # PHASE 0 TEST
         video_sampler=VoiceActivityVideoSampler(
             speaking_fps=VISION_CONFIG["speaking_fps"],
             silent_fps=VISION_CONFIG["silent_fps"],
@@ -557,6 +564,19 @@ async def entrypoint(ctx: JobContext):
     )
 
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
+
+    # --- PHASE 0 TEST — listen for canvas_mode toggle from frontend ---
+    @ctx.room.on("data_received")
+    def on_data_received(packet) -> None:
+        try:
+            msg = json.loads(packet.data.decode("utf-8"))
+            if msg.get("type") == "canvas_mode":
+                enabled = bool(msg.get("enabled", False))
+                session.userdata["canvas_mode"] = enabled
+                logger.info(f"[Canvas-Test] Canvas mode toggled: {enabled}")
+        except Exception:
+            pass
+    # --- END PHASE 0 TEST ---
 
     # 5. Route to the appropriate handler
     if is_onboarding:
