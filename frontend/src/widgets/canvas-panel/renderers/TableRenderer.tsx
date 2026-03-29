@@ -10,16 +10,34 @@ export function TableRenderer({ content }: Props) {
   try {
     data = JSON.parse(content);
   } catch {
-    return <p className="text-xs text-text-muted italic">Could not render table.</p>;
+    return <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Could not render table.</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-primary/30">
-      <table className="w-full text-sm">
+    <div style={{
+      overflowX: 'auto', borderRadius: '10px',
+      border: '1px solid rgba(255,255,255,0.08)',
+      boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+    }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
         <thead>
-          <tr className="bg-surface-tertiary/60">
+          <tr>
             {data.headers.map((h, i) => (
-              <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted border-b border-border-primary/30">
+              <th
+                key={i}
+                style={{
+                  padding: '8px 12px',
+                  textAlign: 'left',
+                  fontSize: '10px', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.1em',
+                  color: 'rgba(255,255,255,0.4)',
+                  background: 'linear-gradient(to bottom, rgba(255,255,255,0.07), rgba(255,255,255,0.04))',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
+                  position: 'sticky', top: 0,
+                  backdropFilter: 'blur(8px)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {h}
               </th>
             ))}
@@ -27,9 +45,23 @@ export function TableRenderer({ content }: Props) {
         </thead>
         <tbody>
           {data.rows.map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? 'bg-surface/40' : 'bg-surface-secondary/30'}>
+            <tr
+              key={ri}
+              style={{ background: ri % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseLeave={e => (e.currentTarget.style.background = ri % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
+            >
               {row.map((cell, ci) => (
-                <td key={ci} className="px-3 py-2 text-text-secondary border-b border-border-primary/20 last:border-b-0">
+                <td
+                  key={ci}
+                  style={{
+                    padding: '7px 12px',
+                    color: ci === 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.45)',
+                    fontWeight: ci === 0 ? 600 : 400,
+                    borderBottom: ri < data.rows.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    transition: 'background 0.12s',
+                  }}
+                >
                   {cell}
                 </td>
               ))}

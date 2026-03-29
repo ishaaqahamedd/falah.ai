@@ -281,6 +281,12 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
   const [artifacts, setArtifacts] = useState<CanvasArtifact[]>([]);
   const [activeArtifact, setActiveArtifact] = useState(0);
   const [newArtifact, setNewArtifact] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingTitle, setGeneratingTitle] = useState('');
+  const [panelWidth, setPanelWidth] = useState(() =>
+    parseInt(localStorage.getItem('canvas_panel_width') || '380', 10)
+  );
 
   // Receive real-time transcript turns from backend via LiveKit data channel
   useDataChannel('', (msg) => {
@@ -300,8 +306,15 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         const turn: TranscriptTurn = { role: data.role, text: data.text, ts: data.timestamp ?? data.ts };
         setTranscript(prev => [...prev, turn]);
         setUnreadCount(prev => prev + 1);
+      } else if (data.type === 'canvas_generating') {
+        setIsGenerating(true);
+        setGeneratingTitle(data.title || '');
+        setShowCanvas(true);
       } else if (data.type === 'canvas_artifact') {
-        const artifact: CanvasArtifact = {
+        setIsGenerating(false);
+        setGeneratingTitle('');
+        const mode: string = data.mode ?? 'new';
+        const incoming: CanvasArtifact = {
           id: crypto.randomUUID(),
           artifact_type: data.artifact_type,
           title: data.title,
@@ -309,9 +322,33 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
           ts: data.ts,
         };
         setArtifacts(prev => {
-          const next = [...prev, artifact];
-          setActiveArtifact(next.length - 1);
-          return next;
+          if (mode === 'new') {
+            const next = [...prev, incoming];
+            setActiveArtifact(next.length - 1);
+            return next;
+          }
+          // replace or append — match by title (case-insensitive, trimmed)
+          const normalize = (s: string) => s.trim().toLowerCase();
+          const idx = prev.findIndex(a => normalize(a.title) === normalize(incoming.title));
+          if (idx === -1) {
+            const next = [...prev, incoming];
+            setActiveArtifact(next.length - 1);
+            return next;
+          }
+          const updated = [...prev];
+          if (mode === 'replace') {
+            updated[idx] = { ...incoming, id: prev[idx].id };
+          } else if (mode === 'append') {
+            updated[idx] = {
+              ...prev[idx],
+              content: prev[idx].content + '\n\n' + incoming.content,
+              ts: incoming.ts,
+            };
+          }
+          setActiveArtifact(idx);
+          setIsUpdating(true);
+          setTimeout(() => setIsUpdating(false), 900);
+          return updated;
         });
         setShowCanvas(true);
         setNewArtifact(true);
@@ -543,12 +580,20 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
         </div>
       </div>
 
-      {/* Canvas panel — slides in from the right */}
+      {/* Canvas panel — slides in from the left */}
       <CanvasPanel
         artifacts={artifacts}
         activeIndex={activeArtifact}
         onTabChange={setActiveArtifact}
         visible={showCanvas && canvasMode}
+        isUpdating={isUpdating}
+        isGenerating={isGenerating}
+        generatingTitle={generatingTitle}
+        panelWidth={panelWidth}
+        onWidthChange={(w) => {
+          setPanelWidth(w);
+          localStorage.setItem('canvas_panel_width', String(w));
+        }}
       />
 
       {/* Live transcript panel — slides up above the bottom bar */}
