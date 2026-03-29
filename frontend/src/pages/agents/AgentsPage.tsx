@@ -184,9 +184,12 @@ export function AgentsPage() {
                 </div>
                 <p className="text-sm text-blue-500 mb-3">{p.role}</p>
                 <p className="text-xs text-text-muted line-clamp-2">{p.focus_areas}</p>
-                <div className="mt-3 flex items-center gap-2 text-xs text-text-muted">
+                <div className="mt-3 flex items-center gap-2 text-xs text-text-muted flex-wrap">
                   <span className="px-2 py-0.5 bg-surface-tertiary rounded">{p.type}</span>
                   <span>Voice: {p.voice}</span>
+                  {p.grounding_enabled && (
+                    <span className="px-2 py-0.5 bg-blue-600/15 text-blue-400 rounded font-medium">Search</span>
+                  )}
                   {p.is_public && p.use_count > 0 && (
                     <span>&middot; {p.use_count} uses</span>
                   )}

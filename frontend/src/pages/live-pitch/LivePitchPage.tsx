@@ -260,7 +260,7 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [setupComplete, setSetupComplete] = useState(false);
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(!localParticipant.isMicrophoneEnabled);
+  const isMicMuted = !localParticipant.isMicrophoneEnabled;
 
   // Transcript state
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
@@ -328,9 +328,7 @@ function LivePitchContent({ onEnd, persona }: { onEnd: () => void; persona?: Per
   const isSharing = !!localScreenShare;
 
   const toggleMic = () => {
-    const next = !isMicMuted;
-    localParticipant.setMicrophoneEnabled(!next);
-    setIsMicMuted(next);
+    localParticipant.setMicrophoneEnabled(isMicMuted);
   };
 
   const toggleScreenShare = () => {

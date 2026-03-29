@@ -15,31 +15,48 @@ ThinkingType = Literal["level", "budget"]
 
 # ── Registry ─────────────────────────────────────────────────────────────────
 MODEL_REGISTRY: dict[str, dict] = {
-    "gemini-3.1-flash-live-preview": {
-        "label": "Gemini 3.1 Flash Live",
-        "tier": "recommended",          # shown in superadmin UI
+    "gemini-2.0-flash-live-001": {
+        "label": "Gemini 2.0 Flash Live (Stable)",
+        "tier": "stable",
+        # GA model — available to all API keys at v1beta
         "thinking": {
             "type": "level",
             "options": ["minimal", "low", "medium", "high"],
-            "default": "minimal",       # lowest latency
+            "default": "minimal",
         },
-        "affective_dialog": False,      # not supported in 3.1
-        "proactivity": False,           # not supported in 3.1
+        "affective_dialog": False,
+        "proactivity": False,
+        "context_window_compression": False,
+    },
+    "gemini-3.1-flash-live-preview": {
+        "label": "Gemini 3.1 Flash Live Preview",
+        "tier": "recommended",
+        # No api_version override — works at default v1beta
+        "thinking": {
+            "type": "level",
+            "options": ["minimal", "low", "medium", "high"],
+            "default": "minimal",
+        },
+        "affective_dialog": False,
+        "proactivity": False,
+        "context_window_compression": True,
     },
     "gemini-2.5-flash-native-audio-preview-12-2025": {
         "label": "Gemini 2.5 Flash Native Audio",
         "tier": "legacy",
+        "api_version": "v1alpha",  # preview model, requires v1alpha
         "thinking": {
             "type": "budget",
-            "default": 128,             # 128 = minimal reasoning (~100-300ms latency)
+            "default": 128,
         },
         "affective_dialog": True,
         "proactivity": True,
+        "context_window_compression": True,
     },
 }
 
 # Default model used when DB has no record and env fallback is also missing
-DEFAULT_MODEL_ID = "gemini-3.1-flash-live-preview"
+DEFAULT_MODEL_ID = "gemini-2.5-flash-native-audio-preview-12-2025"
 
 
 def get_model_spec(model_id: str) -> dict | None:

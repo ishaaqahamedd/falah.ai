@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 import uuid
@@ -15,8 +15,7 @@ class UserRow(BaseModel):
     session_count: int
     agent_count: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UsersListResponse(BaseModel):
@@ -28,7 +27,10 @@ class UsersListResponse(BaseModel):
 
 class ModelSettings(BaseModel):
     """Per-model settings stored in DB and sent from superadmin UI."""
-    thinking_level: Optional[str] = None   # gemini-3.x: "minimal" | "low" | "medium" | "high"
+
+    thinking_level: Optional[str] = (
+        None  # gemini-3.x: "minimal" | "low" | "medium" | "high"
+    )
     thinking_budget: Optional[int] = None  # gemini-2.x: int (0=disabled, -1=auto)
 
 
@@ -46,10 +48,11 @@ class ModelConfigUpdate(BaseModel):
 
 class ModelCapability(BaseModel):
     """Full spec for one model — returned by GET /superadmin/ai/models."""
+
     id: str
     label: str
     tier: str
-    capabilities: dict   # thinking config schema + feature flags from model_registry
+    capabilities: dict  # thinking config schema + feature flags from model_registry
 
 
 class AIModelsResponse(BaseModel):

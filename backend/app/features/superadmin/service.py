@@ -53,7 +53,8 @@ class SuperadminService:
 
         if search:
             query = query.where(
-                (User.email.ilike(f"%{search}%")) | (User.full_name.ilike(f"%{search}%"))
+                (User.email.ilike(f"%{search}%"))
+                | (User.full_name.ilike(f"%{search}%"))
             )
         if role:
             query = query.where(User.role == role)
@@ -61,7 +62,8 @@ class SuperadminService:
         count_query = select(func.count()).select_from(User)
         if search:
             count_query = count_query.where(
-                (User.email.ilike(f"%{search}%")) | (User.full_name.ilike(f"%{search}%"))
+                (User.email.ilike(f"%{search}%"))
+                | (User.full_name.ilike(f"%{search}%"))
             )
         if role:
             count_query = count_query.where(User.role == role)
@@ -76,17 +78,19 @@ class SuperadminService:
         users = []
         for row in rows:
             user = row[0]
-            users.append({
-                "id": user.id,
-                "full_name": user.full_name,
-                "email": user.email,
-                "role": user.role,
-                "is_active": user.is_active,
-                "auth_provider": user.auth_provider,
-                "created_at": user.created_at,
-                "session_count": row[1] or 0,
-                "agent_count": row[2] or 0,
-            })
+            users.append(
+                {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "email": user.email,
+                    "role": user.role,
+                    "is_active": user.is_active,
+                    "auth_provider": user.auth_provider,
+                    "created_at": user.created_at,
+                    "session_count": row[1] or 0,
+                    "agent_count": row[2] or 0,
+                }
+            )
 
         return {"users": users, "total": total, "page": page, "limit": limit}
 
@@ -133,7 +137,9 @@ class SuperadminService:
         # Fill missing settings with registry defaults
         resolved_settings = get_default_settings(model_id)
         if settings:
-            resolved_settings.update({k: v for k, v in settings.items() if v is not None})
+            resolved_settings.update(
+                {k: v for k, v in settings.items() if v is not None}
+            )
 
         errors = validate_settings(model_id, resolved_settings)
         if errors:
@@ -150,13 +156,13 @@ class SuperadminService:
         if config:
             config.model_id = model_id
             config.settings = resolved_settings
-            config.updated_by = updated_by
+            config.updated_by = updated_by  # type: ignore[assignment]
         else:
             config = AIModelConfig(
                 config_key="live_agent_model",
                 model_id=model_id,
                 settings=resolved_settings,
-                updated_by=updated_by,
+                updated_by=updated_by,  # type: ignore[arg-type]
             )
             self.db.add(config)
 

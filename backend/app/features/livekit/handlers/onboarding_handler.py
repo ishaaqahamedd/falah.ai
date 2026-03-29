@@ -113,13 +113,13 @@ async def setup_onboarding(
     nudge_counter = [0]
     screen_share_active = [False]
 
-    @session.on("user_speech_committed")
+    @session.on("user_input_transcribed")
     def _on_user_speech(ev):
         last_activity_ts[0] = time.time()
         last_user_activity_ts[0] = time.time()
         nudge_counter[0] = 0  # Reset escalation on user speech
 
-    @session.on("agent_speech_committed")
+    @session.on("speech_created")
     def _on_agent_speech(ev):
         last_activity_ts[0] = (
             time.time()

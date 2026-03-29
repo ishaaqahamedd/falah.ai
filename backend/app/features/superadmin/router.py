@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
@@ -17,6 +18,7 @@ def get_service(db: AsyncSession = Depends(get_db)) -> SuperadminService:
 
 # ── Users ───────────────────────────────────────────────────────────────────
 
+
 @router.get("/users", response_model=UsersListResponse)
 async def list_users(
     page: int = Query(1, ge=1),
@@ -30,6 +32,7 @@ async def list_users(
 
 
 # ── AI Models ────────────────────────────────────────────────────────────────
+
 
 @router.get("/ai/models", response_model=AIModelsResponse)
 async def get_ai_models(
@@ -57,7 +60,7 @@ async def update_ai_model(
     config = await service.update_live_model(
         model_id=body.model_id,
         settings=body.settings.model_dump() if body.settings else None,
-        updated_by=current_user.id,
+        updated_by=uuid.UUID(str(current_user.id)),
     )
     return {
         "current": {

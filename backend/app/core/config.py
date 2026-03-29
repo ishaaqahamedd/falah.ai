@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     MAX_CRM_CHARS: int = 1000  # ~250 tokens
 
     # Model names — fallback only (DB value always takes precedence)
-    GEMINI_LIVE_MODEL: str = "gemini-3.1-flash-live-preview"
+    GEMINI_LIVE_MODEL: str = "gemini-2.5-flash-native-audio-preview-12-2025"
     GEMINI_FLASH_LITE_MODEL: str = "gemini-3.1-flash-lite-preview"
     GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-2-preview"
 

@@ -23,6 +23,7 @@ interface AgentDetail {
   behavior_rules?: string[];
   opening_message?: string | null;
   is_public?: boolean;
+  grounding_enabled?: boolean;
   use_count?: number;
   history?: string;
 }
@@ -78,6 +79,7 @@ export function AgentDetailPage() {
         personality: editData.personality,
         focus_areas: editData.focus_areas,
         voice: editData.voice,
+        grounding_enabled: editData.grounding_enabled ?? false,
       };
       if (editData.scoring_criteria && editData.scoring_criteria.length > 0) {
         payload.scoring_criteria = editData.scoring_criteria;
@@ -275,6 +277,28 @@ export function AgentDetailPage() {
             </div>
           </div>
 
+          {/* Capabilities */}
+          {!isPreset && (
+            <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Capabilities</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-5 rounded-full flex items-center pointer-events-none ${persona.grounding_enabled ? 'bg-blue-600' : 'bg-surface-tertiary border border-border-primary'}`}>
+                    <div className={`w-3.5 h-3.5 rounded-full bg-white shadow mx-0.5 ${persona.grounding_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">Google Search Grounding</p>
+                    <p className="text-xs text-text-muted">Agent searches the web in real-time for current facts</p>
+                  </div>
+                </div>
+                {persona.grounding_enabled
+                  ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-600/15 text-blue-400">Active</span>
+                  : <span className="text-xs text-text-muted px-2.5 py-1 rounded-full bg-surface-tertiary">Off</span>
+                }
+              </div>
+            </div>
+          )}
+
           {/* Behavior rules read view */}
           {persona.behavior_rules && persona.behavior_rules.length > 0 && (
             <div className="bg-surface-secondary border border-border-primary rounded-xl p-6 space-y-3">
@@ -366,6 +390,25 @@ export function AgentDetailPage() {
                 <span className="text-text-muted font-normal ml-2 text-xs">What do they care about?</span>
               </label>
               <textarea rows={3} value={editData.focus_areas || ''} onChange={(e) => setEditData({ ...editData, focus_areas: e.target.value })} className={inputClass + ' resize-none'} placeholder="e.g. Account setup, feature discovery, troubleshooting..." />
+            </div>
+
+            {/* Google Search Grounding */}
+            <div
+              className="flex items-center justify-between p-4 rounded-xl border border-border-primary bg-surface/50 cursor-pointer select-none"
+              onClick={() => setEditData({ ...editData, grounding_enabled: !editData.grounding_enabled })}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-5 rounded-full transition-colors flex items-center ${editData.grounding_enabled ? 'bg-blue-600' : 'bg-surface-tertiary border border-border-primary'}`}>
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white shadow transition-transform mx-0.5 ${editData.grounding_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">Google Search Grounding</p>
+                  <p className="text-xs text-text-muted">Agent searches the web in real-time for current facts</p>
+                </div>
+              </div>
+              {editData.grounding_enabled && (
+                <span className="text-xs font-medium text-blue-400 bg-blue-600/10 px-2 py-0.5 rounded-full">Active</span>
+              )}
             </div>
 
             {/* Advanced toggle */}
