@@ -40,6 +40,7 @@ async def render_canvas(
     title: str,
     content: str,
     spoken_summary: str,
+    mode: str = "new",
 ) -> str:
     """Render a visual artifact in the user's canvas panel.
     Only use this when canvas mode is active (user enabled it).
@@ -49,6 +50,11 @@ async def render_canvas(
     title: short title shown in the panel tab
     content: artifact content as a string (see module docstring for schemas)
     spoken_summary: what you say aloud while the canvas renders (max 2 sentences)
+    mode: "new" (default) | "replace" | "append"
+      - new: creates a new artifact tab
+      - replace: overwrites the existing artifact with the same title (full rewrite)
+      - append: adds content to the bottom of the existing artifact with the same title
+        (pass ONLY the new delta content, not the full document)
     """
     # Guard: canvas mode must be ON
     if not context.userdata.get("canvas_mode", False):
@@ -65,6 +71,10 @@ async def render_canvas(
         content = content[: CANVAS_CONFIG.max_content_length]
         logger.warning("[Canvas] Artifact content truncated to max_content_length")
 
+    # Normalise mode
+    if mode not in ("new", "replace", "append"):
+        mode = "new"
+
     room = context.userdata.get("room")
     if not room:
         logger.warning("[Canvas] No room in userdata — artifact not broadcast")
@@ -72,6 +82,7 @@ async def render_canvas(
 
     payload = json.dumps({
         "type": "canvas_artifact",
+        "mode": mode,
         "artifact_type": artifact_type,
         "title": title,
         "content": content,
@@ -79,6 +90,6 @@ async def render_canvas(
     }).encode("utf-8")
 
     await room.local_participant.publish_data(payload, reliable=True)
-    logger.info(f"[Canvas] Artifact broadcast: type={artifact_type!r} title={title!r}")
+    logger.info(f"[Canvas] Artifact broadcast: type={artifact_type!r} title={title!r} mode={mode!r}")
 
     return spoken_summary

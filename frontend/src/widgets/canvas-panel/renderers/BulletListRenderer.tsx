@@ -5,17 +5,43 @@ export function BulletListRenderer({ content }: Props) {
   try {
     items = JSON.parse(content);
   } catch {
-    return <p className="text-xs text-text-muted italic">Could not render list.</p>;
+    return <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Could not render list.</p>;
   }
 
   return (
-    <ol className="space-y-2">
+    <ol style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {items.map((item, i) => (
-        <li key={i} className="flex gap-3 items-start">
-          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold flex items-center justify-center mt-0.5">
+        <li
+          key={i}
+          style={{
+            display: 'flex', gap: '10px', alignItems: 'flex-start',
+            animation: `canvasFadeIn 0.3s ease-out ${i * 0.06}s both`,
+          }}
+        >
+          {/* Gradient numbered badge */}
+          <span style={{
+            flexShrink: 0,
+            width: '20px', height: '20px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #0891b2, #2563eb)',
+            boxShadow: '0 2px 6px rgba(8,145,178,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '9px', fontWeight: 800, color: '#fff',
+            marginTop: '1px',
+          }}>
             {i + 1}
           </span>
-          <span className="text-sm text-text-secondary leading-snug">{item}</span>
+          {/* Left accent + text */}
+          <div style={{
+            flex: 1, paddingLeft: '8px',
+            borderLeft: '2px solid rgba(8,145,178,0.2)',
+          }}>
+            <span style={{
+              fontSize: '12px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.55,
+            }}>
+              {item}
+            </span>
+          </div>
         </li>
       ))}
     </ol>

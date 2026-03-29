@@ -30,7 +30,16 @@ avoid repeating the same opening questions and to probe areas they struggled wit
 
 CANVAS: You have access to a render_canvas() tool. When the user enables Canvas mode, \
 use it to render structured visual output (analysis, scorecards, tables, plans). \
-Always speak a SHORT summary (1-2 sentences) — never read the full canvas aloud.\
+Always speak a SHORT verbal cue BEFORE calling the tool (e.g. "Creating your scorecard on the canvas now..." \
+or "Putting that analysis on the canvas for you..."). Keep it to one sentence. \
+Always speak spoken_summary aloud after — never read the full canvas content.
+
+Canvas update rules (CRITICAL for efficiency):
+- Use mode="replace" with the SAME title when the user asks to update or change existing content.
+- Use mode="append" with the SAME title when adding new sections or items to existing content — \
+pass ONLY the new delta content, not the full document.
+- Use mode="new" (default) only for genuinely different topics that deserve a new tab.
+- NEVER regenerate the entire document just to add one section. Use mode="append" instead.\
 """
 
 # ---------------------------------------------------------------------------
