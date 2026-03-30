@@ -62,6 +62,13 @@ export interface Scorecard {
   [dimensionKey: string]: unknown;
 }
 
+export interface CanvasArtifactRecord {
+  artifact_type: 'markdown' | 'bullet_list' | 'table' | 'scorecard';
+  title: string;
+  content: string;
+  ts: number;
+}
+
 export interface Session {
   id: string;
   user_id: string;
@@ -72,6 +79,7 @@ export interface Session {
   status: 'active' | 'completed' | 'crashed';
   scorecard: Scorecard | null;
   ai_summary: string | null;
+  artifacts?: CanvasArtifactRecord[] | null;
   started_at: string;
   ended_at: string | null;
 }

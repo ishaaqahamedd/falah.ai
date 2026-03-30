@@ -42,6 +42,9 @@ class PitchSession(Base):
     scorecard = Column(JSONB, nullable=True)
     ai_summary = Column(Text, nullable=True)
 
+    # Canvas artifacts rendered during the session [{artifact_type, title, content, ts}]
+    artifacts = Column(JSONB, nullable=True)
+
     started_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

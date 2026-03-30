@@ -69,6 +69,7 @@ class LivekitRepository:
         persona_snapshot: dict | None,
         transcript: list[dict],
         duration_seconds: int,
+        artifacts: list[dict] | None = None,
     ) -> None:
         """Create a completed session and trigger scoring + summary."""
         try:
@@ -79,6 +80,7 @@ class LivekitRepository:
                 persona_snapshot=persona_snapshot,
                 transcript=transcript,
                 duration_seconds=duration_seconds,
+                artifacts=artifacts,
             )
             logger.info(f"[Agent] Session saved to DB: {session_record.id}")
             await service.auto_summarize_session(session_record)
@@ -94,6 +96,7 @@ class LivekitRepository:
         session_id: str,
         transcript: list[dict],
         duration_seconds: int,
+        artifacts: list[dict] | None = None,
     ) -> None:
         """Update a pre-created ACTIVE session to COMPLETED and trigger scoring."""
         try:
@@ -102,6 +105,7 @@ class LivekitRepository:
                 session_id=session_id,
                 transcript=transcript,
                 duration_seconds=duration_seconds,
+                artifacts=artifacts,
             )
             logger.info(f"[Agent] Session updated in DB: {session_record.id}")
             await service.auto_summarize_session(session_record)
