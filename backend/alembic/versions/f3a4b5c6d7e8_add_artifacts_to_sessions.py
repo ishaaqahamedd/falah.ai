@@ -1,7 +1,7 @@
 """add artifacts to sessions
 
 Revision ID: f3a4b5c6d7e8
-Revises: b2c3d4e5f6a7
+Revises: c1d2e3f4a5b6
 Create Date: 2026-03-30
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = 'f3a4b5c6d7e8'
-down_revision = 'b2c3d4e5f6a7'
+down_revision = 'c1d2e3f4a5b6'
 branch_labels = None
 depends_on = None
 
